@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { format } from "date-fns";
 import { Space, Button, Dropdown, Modal, Select, Tag, Popover, Typography } from "antd";

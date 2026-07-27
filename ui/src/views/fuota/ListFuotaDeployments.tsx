@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { Space, Button } from "antd";
 import type { ColumnsType } from "antd/es/table";

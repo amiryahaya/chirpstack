@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Route, Routes, useParams, Link } from "react-router-dom";
+import { Route, Routes, useParams, Link } from "react-router";
 
 import { Space, Breadcrumb, Card, Menu } from "antd";
 

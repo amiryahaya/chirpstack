@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Route, Routes, useNavigate, useParams, useLocation, Link } from "react-router-dom";
+import { Route, Routes, useNavigate, useParams, useLocation, Link } from "react-router";
 
 import { format } from "date-fns";
 import { Space, Breadcrumb, Card, Button, Menu, Popconfirm, Descriptions, DescriptionsProps } from "antd";
