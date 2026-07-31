@@ -181,6 +181,12 @@ pub fn run() {
   # ChirpStack will be allowed.
   allow_unknown_gateways={{ gateway.allow_unknown_gateways }}
 
+  # Unknown gateway downlink priority.
+  #
+  # This defines the downlink priority that will be assigned to unknown
+  # gateways.
+  unknown_gateway_downlink_priority={{ gateway.unknown_gateway_downlink_priority }}
+
   # RX timestamp max. drift.
   #
   # If the delta between the gateway reported RX timestamp vs ChirpStack
