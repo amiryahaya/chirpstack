@@ -140,6 +140,7 @@ pub struct Gateway {
     pub ca_cert: String,
     pub ca_key: String,
     pub allow_unknown_gateways: bool,
+    pub unknown_gateway_downlink_priority: u32,
     #[serde(with = "humantime_serde")]
     pub rx_timestamp_max_drift: Duration,
     pub device_gateway_mapping_history_uplinks: usize,
@@ -152,6 +153,7 @@ impl Default for Gateway {
             ca_cert: "".to_string(),
             ca_key: "".to_string(),
             allow_unknown_gateways: false,
+            unknown_gateway_downlink_priority: 10,
             rx_timestamp_max_drift: Duration::from_secs(30),
             device_gateway_mapping_history_uplinks: 1,
         }
