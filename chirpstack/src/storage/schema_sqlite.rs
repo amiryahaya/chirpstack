@@ -279,6 +279,8 @@ diesel::table! {
         tags -> Text,
         properties -> Text,
         downlink_priority -> SmallInt,
+        alert_enabled -> Bool,
+        alert_state -> SmallInt,
     }
 }
 

@@ -307,6 +307,8 @@ diesel::table! {
         tags -> Jsonb,
         properties -> Jsonb,
         downlink_priority -> Int2,
+        alert_enabled -> Bool,
+        alert_state -> Int2,
     }
 }
 

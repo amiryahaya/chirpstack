@@ -32,6 +32,8 @@ pub struct Gateway {
     pub tags: fields::KeyValue,
     pub properties: fields::KeyValue,
     pub downlink_priority: i16,
+    pub alert_enabled: bool,
+    pub alert_state: i16,
 }
 
 impl Gateway {
@@ -68,6 +70,8 @@ impl Default for Gateway {
             tags: fields::KeyValue::new(HashMap::new()),
             properties: fields::KeyValue::new(HashMap::new()),
             downlink_priority: 10,
+            alert_enabled: true,
+            alert_state: 0,
         }
     }
 }
@@ -263,6 +267,54 @@ pub async fn update(gw: Gateway) -> Result<Gateway, Error> {
         "Gateway updated"
     );
     Ok(gw)
+}
+
+#[cfg(feature = "postgres")]
+pub async fn set_alert_enabled(gateway_id: &EUI64, enabled: bool) -> Result<(), Error> {
+    diesel::sql_query(
+        r#"
+        update gateway
+        set
+            alert_enabled = $2,
+            alert_state = case when alert_enabled = false and $2 = true then 0 else alert_state end
+        where gateway_id = $1
+        "#,
+    )
+    .bind::<diesel::sql_types::Binary, _>(gateway_id)
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .execute(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, gateway_id.to_string()))?;
+    Ok(())
+}
+
+#[cfg(feature = "sqlite")]
+pub async fn set_alert_enabled(gateway_id: &EUI64, enabled: bool) -> Result<(), Error> {
+    diesel::sql_query(
+        r#"
+        update gateway
+        set
+            alert_enabled = ?,
+            alert_state = case when alert_enabled = 0 and ? = 1 then 0 else alert_state end
+        where gateway_id = ?
+        "#,
+    )
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .bind::<diesel::sql_types::Binary, _>(gateway_id)
+    .execute(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, gateway_id.to_string()))?;
+    Ok(())
+}
+
+pub async fn set_alert_state(gateway_id: &EUI64, state: i16) -> Result<(), Error> {
+    diesel::update(gateway::dsl::gateway.find(gateway_id))
+        .set(gateway::alert_state.eq(state))
+        .execute(&mut get_async_db_conn().await?)
+        .await
+        .map_err(|e| Error::from_diesel(e, gateway_id.to_string()))?;
+    Ok(())
 }
 
 pub async fn partial_update(gateway_id: EUI64, gw: &GatewayChangeset) -> Result<Gateway, Error> {
@@ -812,6 +864,39 @@ pub mod test {
         // delete
         delete(&gw.gateway_id).await.unwrap();
         assert!(delete(&gw.gateway_id).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_alert_enabled_and_state() {
+        let _guard = test::prepare().await;
+        let t = storage::tenant::test::create_tenant().await;
+
+        let mut gw = Gateway {
+            gateway_id: EUI64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
+            tenant_id: t.id,
+            name: "test-gw".into(),
+            alert_enabled: true,
+            alert_state: 0,
+            ..Default::default()
+        };
+        gw = create(gw).await.unwrap();
+        assert_eq!(0, gw.alert_state);
+
+        set_alert_state(&gw.gateway_id, 2).await.unwrap();
+        let gw_get = get(&gw.gateway_id).await.unwrap();
+        assert_eq!(2, gw_get.alert_state);
+
+        // Disabling must not reset alert_state.
+        set_alert_enabled(&gw.gateway_id, false).await.unwrap();
+        let gw_get = get(&gw.gateway_id).await.unwrap();
+        assert!(!gw_get.alert_enabled);
+        assert_eq!(2, gw_get.alert_state);
+
+        // Re-enabling must reset alert_state to 0 (unknown).
+        set_alert_enabled(&gw.gateway_id, true).await.unwrap();
+        let gw_get = get(&gw.gateway_id).await.unwrap();
+        assert!(gw_get.alert_enabled);
+        assert_eq!(0, gw_get.alert_state);
     }
 
     #[tokio::test]
