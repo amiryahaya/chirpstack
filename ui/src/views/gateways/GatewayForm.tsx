@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-import { Form, Input, InputNumber, Row, Col, Button, Tabs, Space, Card } from "antd";
+import { Form, Input, InputNumber, Row, Col, Button, Tabs, Space, Card, Switch } from "antd";
 import type { TabsProps } from "antd/lib";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 
@@ -78,6 +78,7 @@ function GatewayForm(props: IProps) {
     gw.setStatsInterval(v.statsInterval);
     gw.setLocation(loc);
     gw.setDownlinkPriority(v.downlinkPriority);
+    gw.setAlertEnabled(v.alertEnabled ?? true);
 
     // tags
     for (const elm of v.tagsMap) {
@@ -138,6 +139,14 @@ function GatewayForm(props: IProps) {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item
+            label="Enable inactivity alerts"
+            name="alertEnabled"
+            tooltip="When enabled, the tenant's configured alert email addresses receive a notification when this gateway goes inactive (and again when it recovers)."
+            valuePropName="checked"
+          >
+            <Switch disabled={props.disabled} />
+          </Form.Item>
           <Form.Item label="Location">
             <Form.Item name={["location", "latitude"]} noStyle>
               <Input hidden />
@@ -241,10 +250,15 @@ function GatewayForm(props: IProps) {
     },
   ];
 
+  const formInitialValues = {
+    ...props.initialValues.toObject(),
+    ...((!props.update) && { alertEnabled: true }),
+  };
+
   return (
     <Form
       layout="vertical"
-      initialValues={props.initialValues.toObject()}
+      initialValues={formInitialValues}
       onFinish={onFinish}
       onFinishFailed={onFinishFailed}
       form={form}
