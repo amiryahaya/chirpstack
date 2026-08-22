@@ -90,6 +90,13 @@
       "json",
       "rustls-tls-native-roots",
     ], default-features = false }
+
+    # Alerting
+    lettre = { version = "0.11", default-features = false, features = [
+      "tokio1-rustls-tls",
+      "smtp-transport",
+      "builder",
+    ] }
     axum = "0.8"
     axum-server = { version = "0.8", features = ["tls-rustls-no-provider"] }
     tower = { version = "0.5", features = ["util"] }
