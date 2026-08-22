@@ -121,6 +121,8 @@ pub struct Device {
     pub device_session: Option<fields::DeviceSession>,
     pub app_layer_params: fields::device::AppLayerParams,
     pub f_cnt_up: i64,
+    pub alert_enabled: bool,
+    pub alert_state: i16,
 }
 
 #[derive(AsChangeset, Debug, Clone, Default)]
@@ -199,6 +201,8 @@ impl Default for Device {
             device_session: None,
             app_layer_params: Default::default(),
             f_cnt_up: 0,
+            alert_enabled: true,
+            alert_state: 0,
         }
     }
 }
@@ -608,6 +612,54 @@ pub async fn update(d: Device) -> Result<Device, Error> {
     Ok(d)
 }
 
+#[cfg(feature = "postgres")]
+pub async fn set_alert_enabled(dev_eui: &EUI64, enabled: bool) -> Result<(), Error> {
+    diesel::sql_query(
+        r#"
+        update device
+        set
+            alert_enabled = $2,
+            alert_state = case when alert_enabled = false and $2 = true then 0 else alert_state end
+        where dev_eui = $1
+        "#,
+    )
+    .bind::<diesel::sql_types::Binary, _>(dev_eui)
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .execute(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, dev_eui.to_string()))?;
+    Ok(())
+}
+
+#[cfg(feature = "sqlite")]
+pub async fn set_alert_enabled(dev_eui: &EUI64, enabled: bool) -> Result<(), Error> {
+    diesel::sql_query(
+        r#"
+        update device
+        set
+            alert_enabled = ?,
+            alert_state = case when alert_enabled = 0 and ? = 1 then 0 else alert_state end
+        where dev_eui = ?
+        "#,
+    )
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .bind::<diesel::sql_types::Binary, _>(dev_eui)
+    .execute(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, dev_eui.to_string()))?;
+    Ok(())
+}
+
+pub async fn set_alert_state(dev_eui: &EUI64, state: i16) -> Result<(), Error> {
+    diesel::update(device::dsl::device.find(dev_eui))
+        .set(device::alert_state.eq(state))
+        .execute(&mut get_async_db_conn().await?)
+        .await
+        .map_err(|e| Error::from_diesel(e, dev_eui.to_string()))?;
+    Ok(())
+}
+
 pub async fn partial_update(dev_eui: EUI64, d: &DeviceChangeset) -> Result<Device, Error> {
     let d = diesel::update(device::dsl::device.find(&dev_eui))
         .set(d)
@@ -927,6 +979,62 @@ pub async fn get_active_inactive(tenant_id: &Option<Uuid>) -> Result<DevicesActi
         tenant_id.map(fields::Uuid::from),
     )
     .get_result(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, "".into()))
+}
+
+#[derive(QueryableByName, Debug, Clone)]
+pub struct DeviceAlertCandidate {
+    #[diesel(sql_type = diesel::sql_types::Binary)]
+    pub dev_eui: EUI64,
+    #[diesel(sql_type = fields::sql_types::Uuid)]
+    pub tenant_id: fields::Uuid,
+    #[diesel(sql_type = diesel::sql_types::Text)]
+    pub name: String,
+    #[diesel(sql_type = diesel::sql_types::SmallInt)]
+    pub alert_state: i16,
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub is_inactive: bool,
+}
+
+#[cfg(feature = "postgres")]
+pub async fn get_alert_candidates() -> Result<Vec<DeviceAlertCandidate>, Error> {
+    diesel::sql_query(
+        r#"
+        select
+            d.dev_eui,
+            a.tenant_id,
+            d.name,
+            d.alert_state,
+            (now() - d.last_seen_at) > (make_interval(secs => dp.uplink_interval) * 1.5) as is_inactive
+        from device d
+        inner join device_profile dp on d.device_profile_id = dp.id
+        inner join application a on d.application_id = a.id
+        where d.alert_enabled = true and d.last_seen_at is not null and dp.uplink_interval > 0
+        "#,
+    )
+    .load(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, "".into()))
+}
+
+#[cfg(feature = "sqlite")]
+pub async fn get_alert_candidates() -> Result<Vec<DeviceAlertCandidate>, Error> {
+    diesel::sql_query(
+        r#"
+        select
+            d.dev_eui,
+            a.tenant_id,
+            d.name,
+            d.alert_state,
+            (unixepoch('now') - unixepoch(d.last_seen_at)) > (dp.uplink_interval * 1.5) as is_inactive
+        from device d
+        inner join device_profile dp on d.device_profile_id = dp.id
+        inner join application a on d.application_id = a.id
+        where d.alert_enabled = 1 and d.last_seen_at is not null and dp.uplink_interval > 0
+        "#,
+    )
+    .load(&mut get_async_db_conn().await?)
     .await
     .map_err(|e| Error::from_diesel(e, "".into()))
 }
@@ -1868,5 +1976,119 @@ pub mod test {
                 }
             }
         }
+    }
+
+    #[tokio::test]
+    async fn test_alert_enabled_and_state() {
+        let _guard = test::prepare().await;
+        let dp = storage::device_profile::test::create_device_profile(None).await;
+        let tenant_id = dp.tenant_id.unwrap();
+        let app = storage::application::test::create_application(Some(tenant_id.into())).await;
+
+        let mut d = Device {
+            name: "test-dev".into(),
+            dev_eui: EUI64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            alert_enabled: true,
+            alert_state: 0,
+            ..Default::default()
+        };
+        d = create(d).await.unwrap();
+        assert_eq!(0, d.alert_state);
+
+        set_alert_state(&d.dev_eui, 2).await.unwrap();
+        let d_get = get(&d.dev_eui).await.unwrap();
+        assert_eq!(2, d_get.alert_state);
+
+        // Disabling must not reset alert_state.
+        set_alert_enabled(&d.dev_eui, false).await.unwrap();
+        let d_get = get(&d.dev_eui).await.unwrap();
+        assert!(!d_get.alert_enabled);
+        assert_eq!(2, d_get.alert_state);
+
+        // Re-enabling must reset alert_state to 0 (unknown).
+        set_alert_enabled(&d.dev_eui, true).await.unwrap();
+        let d_get = get(&d.dev_eui).await.unwrap();
+        assert!(d_get.alert_enabled);
+        assert_eq!(0, d_get.alert_state);
+    }
+
+    #[tokio::test]
+    async fn test_get_alert_candidates() {
+        let _guard = test::prepare().await;
+        let dp = storage::device_profile::test::create_device_profile(None).await;
+        let tenant_id = dp.tenant_id.unwrap();
+
+        let mut dp_zero = storage::device_profile::test::create_device_profile(None).await;
+        dp_zero.uplink_interval = 0;
+        dp_zero = storage::device_profile::update(dp_zero).await.unwrap();
+
+        let app = storage::application::test::create_application(Some(tenant_id.into())).await;
+
+        // Never sent an uplink: last_seen_at is None, must not appear.
+        let never_seen = create(Device {
+            name: "never-seen".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 1]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            alert_enabled: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        // Alerting disabled, stale: must not appear.
+        let disabled = create(Device {
+            name: "disabled".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 2]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            alert_enabled: false,
+            last_seen_at: Some(Utc::now() - chrono::Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        // uplink_interval = 0 ("not configured"), stale: must not appear.
+        let zero_interval = create(Device {
+            name: "zero-interval".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 3]),
+            application_id: app.id,
+            device_profile_id: dp_zero.id.into(),
+            alert_enabled: true,
+            last_seen_at: Some(Utc::now() - chrono::Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        // Alert-enabled, past 60 * 1.5 = 90 seconds since last seen: must appear, is_inactive = true.
+        let stale = create(Device {
+            name: "stale".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 4]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            alert_enabled: true,
+            last_seen_at: Some(Utc::now() - chrono::Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        let candidates = get_alert_candidates().await.unwrap();
+        let ids: Vec<EUI64> = candidates.iter().map(|c| c.dev_eui).collect();
+        assert!(!ids.contains(&never_seen.dev_eui));
+        assert!(!ids.contains(&disabled.dev_eui));
+        assert!(!ids.contains(&zero_interval.dev_eui));
+        assert!(ids.contains(&stale.dev_eui));
+
+        let stale_candidate = candidates
+            .iter()
+            .find(|c| c.dev_eui == stale.dev_eui)
+            .unwrap();
+        assert!(stale_candidate.is_inactive);
+        assert_eq!(0, stale_candidate.alert_state);
     }
 }

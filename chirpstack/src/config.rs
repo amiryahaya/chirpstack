@@ -261,6 +261,8 @@ pub struct Monitoring {
     pub per_device_event_log_max_history: usize,
     #[serde(with = "humantime_serde")]
     pub per_device_event_log_ttl: Duration,
+    #[serde(with = "humantime_serde")]
+    pub alert_interval: Duration,
 }
 
 impl Default for Monitoring {
@@ -279,6 +281,7 @@ impl Default for Monitoring {
             per_gateway_frame_log_ttl: Duration::from_secs(60 * 60 * 24 * 31), // 31 days
             per_device_frame_log_ttl: Duration::from_secs(60 * 60 * 24 * 31),
             per_device_event_log_ttl: Duration::from_secs(60 * 60 * 24 * 31),
+            alert_interval: Duration::from_secs(30 * 60),
         }
     }
 }

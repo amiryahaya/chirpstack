@@ -432,6 +432,13 @@ pub fn run() {
   # This defines the TTL of the Redis Stream key.
   per_device_event_log_ttl="{{ monitoring.per_device_event_log_ttl }}"
 
+  # Inactivity alert scan interval.
+  #
+  # This defines the interval at which gateways and devices are scanned for
+  # inactivity, in order to send inactivity alert e-mails. Defaults to 30
+  # minutes.
+  alert_interval="{{ monitoring.alert_interval }}"
+
 
 # Global integration related configuration.
 [integration]

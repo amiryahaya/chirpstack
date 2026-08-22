@@ -32,6 +32,13 @@ pub struct Tenant {
     pub private_gateways_down: bool,
     pub tags: fields::KeyValue,
     pub dev_addr_prefixes: fields::DevAddrPrefixVec,
+    pub alert_smtp_host: String,
+    pub alert_smtp_port: i32,
+    pub alert_smtp_username: String,
+    pub alert_smtp_password: String,
+    pub alert_smtp_from_email: String,
+    pub alert_smtp_use_tls: bool,
+    pub alert_email_addresses: fields::StringVec,
 }
 
 impl Tenant {
@@ -92,6 +99,13 @@ impl Default for Tenant {
             private_gateways_down: false,
             tags: fields::KeyValue::new(HashMap::new()),
             dev_addr_prefixes: fields::DevAddrPrefixVec::new(vec![]),
+            alert_smtp_host: String::new(),
+            alert_smtp_port: 587,
+            alert_smtp_username: String::new(),
+            alert_smtp_password: String::new(),
+            alert_smtp_from_email: String::new(),
+            alert_smtp_use_tls: true,
+            alert_email_addresses: fields::StringVec::default(),
         }
     }
 }
@@ -241,6 +255,13 @@ pub async fn update(t: Tenant) -> Result<Tenant, Error> {
             tenant::private_gateways_down.eq(&t.private_gateways_down),
             tenant::tags.eq(&t.tags),
             tenant::dev_addr_prefixes.eq(&t.dev_addr_prefixes),
+            tenant::alert_smtp_host.eq(&t.alert_smtp_host),
+            tenant::alert_smtp_port.eq(&t.alert_smtp_port),
+            tenant::alert_smtp_username.eq(&t.alert_smtp_username),
+            tenant::alert_smtp_password.eq(&t.alert_smtp_password),
+            tenant::alert_smtp_from_email.eq(&t.alert_smtp_from_email),
+            tenant::alert_smtp_use_tls.eq(&t.alert_smtp_use_tls),
+            tenant::alert_email_addresses.eq(&t.alert_email_addresses),
         ))
         .get_result(&mut get_async_db_conn().await?)
         .await
@@ -707,6 +728,7 @@ pub mod test {
             private_gateways_down: true,
             tags: fields::KeyValue::new(HashMap::new()),
             dev_addr_prefixes: fields::DevAddrPrefixVec::new(vec![]),
+            ..Default::default()
         };
         create(t).await.unwrap()
     }
@@ -992,5 +1014,37 @@ pub mod test {
             }
             .get_dev_addr_prefixes()
         );
+    }
+
+    #[tokio::test]
+    async fn test_alert_config() {
+        let _guard = test::prepare().await;
+
+        let mut t = Tenant {
+            name: "alert-tenant".into(),
+            alert_smtp_host: "smtp.example.com".into(),
+            alert_smtp_port: 587,
+            alert_smtp_username: "smtp-user".into(),
+            alert_smtp_password: "smtp-pass".into(),
+            alert_smtp_from_email: "alerts@example.com".into(),
+            alert_smtp_use_tls: true,
+            alert_email_addresses: fields::StringVec::new(vec![
+                Some("ops@example.com".into()),
+                Some("oncall@example.com".into()),
+            ]),
+            ..Default::default()
+        };
+        t = create(t).await.unwrap();
+
+        let t_get = get(&t.id).await.unwrap();
+        assert_eq!(t, t_get);
+
+        t.alert_smtp_host = "smtp2.example.com".into();
+        t.alert_smtp_use_tls = false;
+        t.alert_email_addresses = fields::StringVec::new(vec![Some("new@example.com".into())]);
+        t = update(t).await.unwrap();
+
+        let t_get = get(&t.id).await.unwrap();
+        assert_eq!(t, t_get);
     }
 }

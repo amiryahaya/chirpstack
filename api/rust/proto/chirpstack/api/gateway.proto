@@ -131,6 +131,10 @@ message Gateway {
   // and an user-defined downlink priority which can be used as a positive or
   // negative bias in the downlink gateway selection.
   uint32 downlink_priority = 9;
+
+  // Enable inactivity alert emails for this gateway.
+  // When not set by the client, defaults to true.
+  optional bool alert_enabled = 10;
 }
 
 message GatewayListItem {

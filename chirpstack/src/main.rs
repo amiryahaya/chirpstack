@@ -18,6 +18,7 @@ use lrwn::EUI64;
 
 mod adr;
 mod aeskey;
+mod alert;
 mod api;
 mod applayer;
 mod backend;

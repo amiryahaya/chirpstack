@@ -59,6 +59,9 @@
   # HTTP
   reqwest.workspace = true
 
+  # Alerting
+  lettre.workspace = true
+
   # Integrations
   aws-sign-v4.workspace = true
   hmac.workspace = true

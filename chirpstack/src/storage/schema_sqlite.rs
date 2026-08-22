@@ -1,6 +1,19 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    alert_event (id) {
+        id -> Text,
+        entity_type -> SmallInt,
+        entity_id -> Binary,
+        tenant_id -> Text,
+        previous_state -> SmallInt,
+        new_state -> SmallInt,
+        created_at -> TimestamptzSqlite,
+        email_sent -> Bool,
+    }
+}
+
+diesel::table! {
     api_key (id) {
         id -> Text,
         created_at -> TimestamptzSqlite,
@@ -63,6 +76,8 @@ diesel::table! {
         device_session -> Nullable<Binary>,
         app_layer_params -> Text,
         f_cnt_up -> BigInt,
+        alert_enabled -> Bool,
+        alert_state -> SmallInt,
     }
 }
 
@@ -279,6 +294,8 @@ diesel::table! {
         tags -> Text,
         properties -> Text,
         downlink_priority -> SmallInt,
+        alert_enabled -> Bool,
+        alert_state -> SmallInt,
     }
 }
 
@@ -369,6 +386,13 @@ diesel::table! {
         private_gateways_down -> Bool,
         tags -> Text,
         dev_addr_prefixes -> Text,
+        alert_smtp_host -> Text,
+        alert_smtp_port -> Integer,
+        alert_smtp_username -> Text,
+        alert_smtp_password -> Text,
+        alert_smtp_from_email -> Text,
+        alert_smtp_use_tls -> Bool,
+        alert_email_addresses -> Text,
     }
 }
 
@@ -416,6 +440,7 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(alert_event -> tenant (tenant_id));
 diesel::joinable!(api_key -> tenant (tenant_id));
 diesel::joinable!(application -> tenant (tenant_id));
 diesel::joinable!(application_integration -> application (application_id));
@@ -450,6 +475,7 @@ diesel::joinable!(tenant_user_device_profile -> device_profile (device_profile_i
 diesel::joinable!(tenant_user_device_profile -> user (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    alert_event,
     api_key,
     application,
     application_integration,

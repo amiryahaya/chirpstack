@@ -43,6 +43,7 @@ function DeviceForm(props: IProps) {
     d.setDeviceProfileId(v.deviceProfileId[v.deviceProfileId.length - 1]);
     d.setIsDisabled(v.isDisabled);
     d.setSkipFcntCheck(v.skipFcntCheck);
+    d.setAlertEnabled(v.alertEnabled ?? true);
     d.setJoinEui(v.joinEui);
 
     // tags
@@ -155,6 +156,14 @@ function DeviceForm(props: IProps) {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item
+            label="Enable inactivity alerts"
+            name="alertEnabled"
+            tooltip="When enabled, the tenant's configured alert email addresses receive a notification when this device goes inactive (and again when it recovers)."
+            valuePropName="checked"
+          >
+            <Switch disabled={props.disabled} />
+          </Form.Item>
         </>
       ),
     },
@@ -240,10 +249,15 @@ function DeviceForm(props: IProps) {
     },
   ];
 
+  const formInitialValues = {
+    ...props.initialValues.toObject(),
+    ...(!props.update && { alertEnabled: true }),
+  };
+
   return (
     <Form
       layout="vertical"
-      initialValues={props.initialValues.toObject()}
+      initialValues={formInitialValues}
       onFinish={onFinish}
       onFinishFailed={onFinishFailed}
       form={form}

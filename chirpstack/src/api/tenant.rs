@@ -61,6 +61,19 @@ impl TenantService for Tenant {
             private_gateways_down: req_tenant.private_gateways_down,
             tags: fields::KeyValue::new(req_tenant.tags.clone()),
             dev_addr_prefixes: fields::DevAddrPrefixVec::new(dev_addr_prefixes),
+            alert_smtp_host: req_tenant.alert_smtp_host.clone(),
+            alert_smtp_port: req_tenant.alert_smtp_port as i32,
+            alert_smtp_username: req_tenant.alert_smtp_username.clone(),
+            alert_smtp_password: req_tenant.alert_smtp_password.clone(),
+            alert_smtp_from_email: req_tenant.alert_smtp_from_email.clone(),
+            alert_smtp_use_tls: req_tenant.alert_smtp_use_tls,
+            alert_email_addresses: fields::StringVec::new(
+                req_tenant
+                    .alert_email_addresses
+                    .iter()
+                    .map(|s| Some(s.clone()))
+                    .collect(),
+            ),
             ..Default::default()
         };
 
@@ -108,6 +121,13 @@ impl TenantService for Tenant {
                     .iter()
                     .filter_map(|v| v.map(|v| v.to_string()))
                     .collect(),
+                alert_smtp_host: t.alert_smtp_host,
+                alert_smtp_port: t.alert_smtp_port as u32,
+                alert_smtp_username: t.alert_smtp_username,
+                alert_smtp_password: t.alert_smtp_password,
+                alert_smtp_from_email: t.alert_smtp_from_email,
+                alert_smtp_use_tls: t.alert_smtp_use_tls,
+                alert_email_addresses: t.alert_email_addresses.iter().flatten().cloned().collect(),
             }),
             created_at: Some(helpers::datetime_to_prost_timestamp(&t.created_at)),
             updated_at: Some(helpers::datetime_to_prost_timestamp(&t.updated_at)),
@@ -157,6 +177,19 @@ impl TenantService for Tenant {
             private_gateways_down: req_tenant.private_gateways_down,
             tags: fields::KeyValue::new(req_tenant.tags.clone()),
             dev_addr_prefixes: fields::DevAddrPrefixVec::new(dev_addr_prefixes),
+            alert_smtp_host: req_tenant.alert_smtp_host.clone(),
+            alert_smtp_port: req_tenant.alert_smtp_port as i32,
+            alert_smtp_username: req_tenant.alert_smtp_username.clone(),
+            alert_smtp_password: req_tenant.alert_smtp_password.clone(),
+            alert_smtp_from_email: req_tenant.alert_smtp_from_email.clone(),
+            alert_smtp_use_tls: req_tenant.alert_smtp_use_tls,
+            alert_email_addresses: fields::StringVec::new(
+                req_tenant
+                    .alert_email_addresses
+                    .iter()
+                    .map(|s| Some(s.clone()))
+                    .collect(),
+            ),
             ..Default::default()
         })
         .await
@@ -575,6 +608,35 @@ impl TenantService for Tenant {
 
         Ok(resp)
     }
+
+    async fn test_alert_email(
+        &self,
+        request: Request<api::TestAlertEmailRequest>,
+    ) -> Result<Response<()>, Status> {
+        let req = request.get_ref();
+        let tenant_id = Uuid::from_str(&req.tenant_id).map_err(|e| e.status())?;
+
+        self.validator
+            .validate(
+                request.extensions(),
+                validator::ValidateTenantAccess::new(validator::Flag::Update, tenant_id),
+            )
+            .await?;
+
+        let t = tenant::get(&tenant_id).await.map_err(|e| e.status())?;
+
+        if crate::alert::email::deliverable_addresses(&t).is_empty() {
+            return Err(Status::failed_precondition(
+                "no alert email addresses configured for this tenant",
+            ));
+        }
+
+        crate::alert::email::send_test_email(&t)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(()))
+    }
 }
 
 #[cfg(test)]
@@ -609,6 +671,13 @@ pub mod test {
                 can_have_gateways: true,
                 max_device_count: 10,
                 max_gateway_count: 3,
+                alert_smtp_host: "smtp.example.com".into(),
+                alert_smtp_port: 587,
+                alert_smtp_username: "smtp-user".into(),
+                alert_smtp_password: "smtp-pass".into(),
+                alert_smtp_from_email: "alerts@example.com".into(),
+                alert_smtp_use_tls: true,
+                alert_email_addresses: vec!["a@example.com".into(), "b@example.com".into()],
                 ..Default::default()
             }),
         };
@@ -635,6 +704,13 @@ pub mod test {
                 can_have_gateways: true,
                 max_device_count: 10,
                 max_gateway_count: 3,
+                alert_smtp_host: "smtp.example.com".into(),
+                alert_smtp_port: 587,
+                alert_smtp_username: "smtp-user".into(),
+                alert_smtp_password: "smtp-pass".into(),
+                alert_smtp_from_email: "alerts@example.com".into(),
+                alert_smtp_use_tls: true,
+                alert_email_addresses: vec!["a@example.com".into(), "b@example.com".into()],
                 ..Default::default()
             }),
             get_resp.get_ref().tenant
@@ -649,6 +725,13 @@ pub mod test {
                 can_have_gateways: true,
                 max_device_count: 10,
                 max_gateway_count: 3,
+                alert_smtp_host: "smtp2.example.com".into(),
+                alert_smtp_port: 25,
+                alert_smtp_username: "".into(),
+                alert_smtp_password: "".into(),
+                alert_smtp_from_email: "alerts2@example.com".into(),
+                alert_smtp_use_tls: false,
+                alert_email_addresses: vec!["c@example.com".into()],
                 ..Default::default()
             }),
         };
@@ -675,9 +758,77 @@ pub mod test {
                 can_have_gateways: true,
                 max_device_count: 10,
                 max_gateway_count: 3,
+                alert_smtp_host: "smtp2.example.com".into(),
+                alert_smtp_port: 25,
+                alert_smtp_username: "".into(),
+                alert_smtp_password: "".into(),
+                alert_smtp_from_email: "alerts2@example.com".into(),
+                alert_smtp_use_tls: false,
+                alert_email_addresses: vec!["c@example.com".into()],
                 ..Default::default()
             }),
             get_resp.get_ref().tenant
+        );
+
+        // test_alert_email: tenant has no alert email addresses configured, so the
+        // handler should reject the request before attempting to send anything.
+        let no_addr_req = api::CreateTenantRequest {
+            tenant: Some(api::Tenant {
+                name: "Tenant without alert emails".into(),
+                ..Default::default()
+            }),
+        };
+        let mut no_addr_req = Request::new(no_addr_req);
+        no_addr_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let no_addr_resp = service.create(no_addr_req).await.unwrap();
+
+        let test_email_req = api::TestAlertEmailRequest {
+            tenant_id: no_addr_resp.get_ref().id.clone(),
+        };
+        let mut test_email_req = Request::new(test_email_req);
+        test_email_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let test_email_resp = service.test_alert_email(test_email_req).await;
+        assert!(test_email_resp.is_err());
+        assert_eq!(
+            tonic::Code::FailedPrecondition,
+            test_email_resp.unwrap_err().code()
+        );
+
+        // test_alert_email: tenant has a non-empty alert_email_addresses list, but
+        // every entry is blank after trimming. This is the case that distinguishes
+        // the new precondition check from send_test_email's pre-existing
+        // `.is_empty()` guard: the outer Vec isn't empty, so `.is_empty()` alone
+        // would let this through and silently send zero emails while reporting
+        // success. The handler must still reject it.
+        let blank_addr_req = api::CreateTenantRequest {
+            tenant: Some(api::Tenant {
+                name: "Tenant with blank alert emails".into(),
+                alert_email_addresses: vec!["".into(), "   ".into()],
+                ..Default::default()
+            }),
+        };
+        let mut blank_addr_req = Request::new(blank_addr_req);
+        blank_addr_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let blank_addr_resp = service.create(blank_addr_req).await.unwrap();
+
+        let test_email_req = api::TestAlertEmailRequest {
+            tenant_id: blank_addr_resp.get_ref().id.clone(),
+        };
+        let mut test_email_req = Request::new(test_email_req);
+        test_email_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let test_email_resp = service.test_alert_email(test_email_req).await;
+        assert!(test_email_resp.is_err());
+        assert_eq!(
+            tonic::Code::FailedPrecondition,
+            test_email_resp.unwrap_err().code()
         );
 
         // list
