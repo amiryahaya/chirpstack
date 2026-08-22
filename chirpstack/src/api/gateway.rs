@@ -70,6 +70,8 @@ impl GatewayService for Gateway {
             } else {
                 req_gw.downlink_priority
             } as i16,
+            alert_enabled: req_gw.alert_enabled.unwrap_or(true),
+            alert_state: 0,
             ..Default::default()
         };
 
@@ -114,6 +116,7 @@ impl GatewayService for Gateway {
                 metadata: gw.properties.into_hashmap(),
                 stats_interval: gw.stats_interval_secs as u32,
                 downlink_priority: gw.downlink_priority as u32,
+                alert_enabled: Some(gw.alert_enabled),
             }),
             created_at: Some(helpers::datetime_to_prost_timestamp(&gw.created_at)),
             updated_at: Some(helpers::datetime_to_prost_timestamp(&gw.updated_at)),
@@ -167,6 +170,12 @@ impl GatewayService for Gateway {
         })
         .await
         .map_err(|e| e.status())?;
+
+        if let Some(enabled) = req_gw.alert_enabled {
+            gateway::set_alert_enabled(&gw_id, enabled)
+                .await
+                .map_err(|e| e.status())?;
+        }
 
         let mut resp = Response::new(());
         resp.metadata_mut()
@@ -1058,6 +1067,7 @@ pub mod test {
                     ..Default::default()
                 }),
                 downlink_priority: 10,
+                alert_enabled: Some(true),
                 ..Default::default()
             }),
             get_resp.get_ref().gateway
@@ -1106,9 +1116,84 @@ pub mod test {
                     ..Default::default()
                 }),
                 downlink_priority: 11,
+                alert_enabled: Some(true),
                 ..Default::default()
             }),
             get_resp.get_ref().gateway
+        );
+
+        // update, disabling alerts
+        let up_req = api::UpdateGatewayRequest {
+            gateway: Some(api::Gateway {
+                gateway_id: "0102030405060708".into(),
+                tenant_id: t.id.to_string(),
+                name: "updated-gw".into(),
+                location: Some(common::Location {
+                    latitude: 2.1,
+                    longitude: 2.2,
+                    altitude: 2.0,
+                    ..Default::default()
+                }),
+                downlink_priority: 11,
+                alert_enabled: Some(false),
+                ..Default::default()
+            }),
+        };
+        let mut up_req = Request::new(up_req);
+        up_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let _ = service.update(up_req).await.unwrap();
+
+        // get, alerts must be disabled
+        let get_req = api::GetGatewayRequest {
+            gateway_id: "0102030405060708".into(),
+        };
+        let mut get_req = Request::new(get_req);
+        get_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let get_resp = service.get(get_req).await.unwrap();
+        assert_eq!(
+            Some(false),
+            get_resp.get_ref().gateway.as_ref().unwrap().alert_enabled
+        );
+
+        // update, without setting alert_enabled must leave it untouched
+        let up_req = api::UpdateGatewayRequest {
+            gateway: Some(api::Gateway {
+                gateway_id: "0102030405060708".into(),
+                tenant_id: t.id.to_string(),
+                name: "updated-gw".into(),
+                location: Some(common::Location {
+                    latitude: 2.1,
+                    longitude: 2.2,
+                    altitude: 2.0,
+                    ..Default::default()
+                }),
+                downlink_priority: 11,
+                alert_enabled: None,
+                ..Default::default()
+            }),
+        };
+        let mut up_req = Request::new(up_req);
+        up_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let _ = service.update(up_req).await.unwrap();
+
+        // get, alerts must still be disabled
+        let get_req = api::GetGatewayRequest {
+            gateway_id: "0102030405060708".into(),
+        };
+        let mut get_req = Request::new(get_req);
+        get_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let get_resp = service.get(get_req).await.unwrap();
+        assert_eq!(
+            Some(false),
+            get_resp.get_ref().gateway.as_ref().unwrap().alert_enabled
         );
 
         // list
