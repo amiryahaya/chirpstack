@@ -803,6 +803,39 @@ pub mod test {
             test_email_resp.unwrap_err().code()
         );
 
+        // test_alert_email: tenant has a non-empty alert_email_addresses list, but
+        // every entry is blank after trimming. This is the case that distinguishes
+        // the new precondition check from send_test_email's pre-existing
+        // `.is_empty()` guard: the outer Vec isn't empty, so `.is_empty()` alone
+        // would let this through and silently send zero emails while reporting
+        // success. The handler must still reject it.
+        let blank_addr_req = api::CreateTenantRequest {
+            tenant: Some(api::Tenant {
+                name: "Tenant with blank alert emails".into(),
+                alert_email_addresses: vec!["".into(), "   ".into()],
+                ..Default::default()
+            }),
+        };
+        let mut blank_addr_req = Request::new(blank_addr_req);
+        blank_addr_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let blank_addr_resp = service.create(blank_addr_req).await.unwrap();
+
+        let test_email_req = api::TestAlertEmailRequest {
+            tenant_id: blank_addr_resp.get_ref().id.clone(),
+        };
+        let mut test_email_req = Request::new(test_email_req);
+        test_email_req
+            .extensions_mut()
+            .insert(AuthID::User(Into::<uuid::Uuid>::into(u.id)));
+        let test_email_resp = service.test_alert_email(test_email_req).await;
+        assert!(test_email_resp.is_err());
+        assert_eq!(
+            tonic::Code::FailedPrecondition,
+            test_email_resp.unwrap_err().code()
+        );
+
         // list
         let list_req = api::ListTenantsRequest {
             search: "update".into(),
