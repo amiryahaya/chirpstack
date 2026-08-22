@@ -73,6 +73,8 @@ impl DeviceService for Device {
             tags: fields::KeyValue::new(req_d.tags.clone()),
             variables: fields::KeyValue::new(req_d.variables.clone()),
             join_eui,
+            alert_enabled: req_d.alert_enabled.unwrap_or(true),
+            alert_state: 0,
             ..Default::default()
         };
 
@@ -117,6 +119,7 @@ impl DeviceService for Device {
                 variables: d.variables.into_hashmap(),
                 tags: d.tags.into_hashmap(),
                 join_eui: d.join_eui.to_string(),
+                alert_enabled: Some(d.alert_enabled),
             }),
             created_at: Some(helpers::datetime_to_prost_timestamp(&d.created_at)),
             updated_at: Some(helpers::datetime_to_prost_timestamp(&d.updated_at)),
@@ -204,6 +207,12 @@ impl DeviceService for Device {
         })
         .await
         .map_err(|e| e.status())?;
+
+        if let Some(enabled) = req_d.alert_enabled {
+            device::set_alert_enabled(&dev_eui, enabled)
+                .await
+                .map_err(|e| e.status())?;
+        }
 
         let mut resp = Response::new(());
         resp.metadata_mut()
@@ -1384,6 +1393,7 @@ pub mod test {
                 name: "test-device".into(),
                 dev_eui: "0102030405060708".into(),
                 join_eui: "0000000000000000".into(),
+                alert_enabled: Some(true),
                 ..Default::default()
             }),
             get_resp.get_ref().device
@@ -1420,9 +1430,70 @@ pub mod test {
                 name: "test-device-updated".into(),
                 dev_eui: "0102030405060708".into(),
                 join_eui: "0807060504030201".into(),
+                alert_enabled: Some(true),
                 ..Default::default()
             }),
             get_resp.get_ref().device
+        );
+
+        // update, disabling alerts
+        let update_req = get_request(
+            &u.id,
+            api::UpdateDeviceRequest {
+                device: Some(api::Device {
+                    application_id: app.id.to_string(),
+                    device_profile_id: dp.id.to_string(),
+                    name: "test-device-updated".into(),
+                    dev_eui: "0102030405060708".into(),
+                    join_eui: "0807060504030201".into(),
+                    alert_enabled: Some(false),
+                    ..Default::default()
+                }),
+            },
+        );
+        let _ = service.update(update_req).await.unwrap();
+
+        // get, alerts must be disabled
+        let get_req = get_request(
+            &u.id,
+            api::GetDeviceRequest {
+                dev_eui: "0102030405060708".into(),
+            },
+        );
+        let get_resp = service.get(get_req).await.unwrap();
+        assert_eq!(
+            Some(false),
+            get_resp.get_ref().device.as_ref().unwrap().alert_enabled
+        );
+
+        // update, without setting alert_enabled must leave it untouched
+        let update_req = get_request(
+            &u.id,
+            api::UpdateDeviceRequest {
+                device: Some(api::Device {
+                    application_id: app.id.to_string(),
+                    device_profile_id: dp.id.to_string(),
+                    name: "test-device-updated".into(),
+                    dev_eui: "0102030405060708".into(),
+                    join_eui: "0807060504030201".into(),
+                    alert_enabled: None,
+                    ..Default::default()
+                }),
+            },
+        );
+        let _ = service.update(update_req).await.unwrap();
+
+        // get, alerts must still be disabled
+        let get_req = get_request(
+            &u.id,
+            api::GetDeviceRequest {
+                dev_eui: "0102030405060708".into(),
+            },
+        );
+        let get_resp = service.get(get_req).await.unwrap();
+        assert_eq!(
+            Some(false),
+            get_resp.get_ref().device.as_ref().unwrap().alert_enabled
         );
 
         // list
