@@ -141,6 +141,20 @@ pub struct GatewayCountsByState {
     pub offline_count: i64,
 }
 
+#[derive(QueryableByName, Debug, Clone)]
+pub struct GatewayAlertCandidate {
+    #[diesel(sql_type = diesel::sql_types::Binary)]
+    pub gateway_id: EUI64,
+    #[diesel(sql_type = fields::sql_types::Uuid)]
+    pub tenant_id: fields::Uuid,
+    #[diesel(sql_type = diesel::sql_types::Text)]
+    pub name: String,
+    #[diesel(sql_type = diesel::sql_types::SmallInt)]
+    pub alert_state: i16,
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub is_inactive: bool,
+}
+
 #[derive(Queryable, Insertable, PartialEq, Debug)]
 #[diesel(table_name = relay_gateway)]
 pub struct RelayGateway {
@@ -516,6 +530,44 @@ pub async fn get_counts_by_state(tenant_id: &Option<Uuid>) -> Result<GatewayCoun
             ?1 is null or tenant_id = ?1
     "#).bind::<diesel::sql_types::Nullable<fields::sql_types::Uuid>, _>(tenant_id.map(fields::Uuid::from)).get_result(&mut get_async_db_conn().await?).await?;
     Ok(counts)
+}
+
+#[cfg(feature = "postgres")]
+pub async fn get_alert_candidates() -> Result<Vec<GatewayAlertCandidate>, Error> {
+    diesel::sql_query(
+        r#"
+        select
+            gateway_id,
+            tenant_id,
+            name,
+            alert_state,
+            (now() - last_seen_at) > make_interval(secs => stats_interval_secs * 2) as is_inactive
+        from gateway
+        where alert_enabled = true and last_seen_at is not null
+        "#,
+    )
+    .load(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, "".into()))
+}
+
+#[cfg(feature = "sqlite")]
+pub async fn get_alert_candidates() -> Result<Vec<GatewayAlertCandidate>, Error> {
+    diesel::sql_query(
+        r#"
+        select
+            gateway_id,
+            tenant_id,
+            name,
+            alert_state,
+            (unixepoch('now') - unixepoch(last_seen_at)) > (stats_interval_secs * 2) as is_inactive
+        from gateway
+        where alert_enabled = 1 and last_seen_at is not null
+        "#,
+    )
+    .load(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, "".into()))
 }
 
 pub async fn create_relay_gateway(relay: RelayGateway) -> Result<RelayGateway, Error> {
@@ -988,5 +1040,62 @@ pub mod test {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn test_get_alert_candidates() {
+        let _guard = test::prepare().await;
+        let t = storage::tenant::test::create_tenant().await;
+
+        // A gateway that has never sent stats: last_seen_at is None, must not appear.
+        let never_seen = create(Gateway {
+            gateway_id: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 1]),
+            tenant_id: t.id,
+            name: "never-seen".into(),
+            alert_enabled: true,
+            stats_interval_secs: 30,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        // A gateway with alerting disabled, last seen long ago: must not appear.
+        let disabled = create(Gateway {
+            gateway_id: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 2]),
+            tenant_id: t.id,
+            name: "disabled".into(),
+            alert_enabled: false,
+            stats_interval_secs: 30,
+            last_seen_at: Some(Utc::now() - chrono::Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        // A gateway that is alert-enabled and stale: must appear with is_inactive = true.
+        let stale = create(Gateway {
+            gateway_id: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 3]),
+            tenant_id: t.id,
+            name: "stale".into(),
+            alert_enabled: true,
+            stats_interval_secs: 30,
+            last_seen_at: Some(Utc::now() - chrono::Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        let candidates = get_alert_candidates().await.unwrap();
+        let ids: Vec<EUI64> = candidates.iter().map(|c| c.gateway_id).collect();
+        assert!(!ids.contains(&never_seen.gateway_id));
+        assert!(!ids.contains(&disabled.gateway_id));
+        assert!(ids.contains(&stale.gateway_id));
+
+        let stale_candidate = candidates
+            .iter()
+            .find(|c| c.gateway_id == stale.gateway_id)
+            .unwrap();
+        assert!(stale_candidate.is_inactive);
+        assert_eq!(0, stale_candidate.alert_state);
     }
 }
