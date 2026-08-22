@@ -131,7 +131,7 @@ loop {
 ```
 
 `interval` is configurable via a new `[monitoring]` block in
-`chirpstack.toml` (e.g. `alert_interval`), default 60s.
+`chirpstack.toml` (e.g. `alert_interval`), default 30 minutes.
 
 **`scan_gateways()`**: query gateways where `alert_enabled = true` and
 `last_seen_at is not null` (never-seen gateways are skipped entirely, per
@@ -148,13 +148,19 @@ scope). For each: `is_inactive = now - last_seen_at > stats_interval_secs *
 
 **`scan_devices()`**: same shape, joined with the device's `DeviceProfile`
 for `uplink_interval` as the threshold instead of the gateway formula.
-Devices whose profile has `uplink_interval == 0` are skipped (0 means "no
-expected interval configured" — this assumption should be verified against
-existing UI/validation behavior for `uplink_interval` during
-implementation).
+Devices whose profile has `uplink_interval == 0` are skipped entirely (0
+means "no expected interval configured" — not "always inactive").
 
 Both scans are done as a small number of batched SQL queries (not a
 per-row round trip) to keep this cheap at scale.
+
+**Toggling `alert_enabled` off and back on**: turning the toggle off does
+not delete history, but turning it back on resets `alert_state` to
+`Unknown`. This makes re-enabling behave like a brand-new entity — the next
+scan just records the observed state silently, and only a subsequent
+transition can trigger an email. This avoids an immediate alert firing the
+moment someone re-enables alerting on an entity that happens to be inactive
+at that instant.
 
 ## Email delivery
 
@@ -175,8 +181,8 @@ Retry/backoff is explicitly deferred (see Non-goals).
 
 ## API / proto changes
 
-No new RPCs. Existing Create/Update/Get messages for `Tenant`, `Gateway`,
-and `Device` gain new fields:
+Existing Create/Update/Get messages for `Tenant`, `Gateway`, and `Device`
+gain new fields:
 
 - `api/proto/api/tenant.proto` — `Tenant` message gains
   `alert_smtp_host`, `alert_smtp_port`, `alert_smtp_username`,
@@ -187,13 +193,20 @@ and `Device` gain new fields:
 - `api/proto/api/device.proto` — `Device` message gains `bool
   alert_enabled`.
 
+One new RPC: `TenantService.TestAlertEmail(TestAlertEmailRequest{tenant_id})
+returns (google.protobuf.Empty)` — sends a one-off test message using the
+tenant's currently-saved SMTP settings and returns an error if the send
+fails, backing the "Send test email" UI button.
+
 Generated Rust and TypeScript/gRPC-Web bindings are regenerated via the
 existing `make proto` pipeline.
 
 ## UI changes
 
-- Tenant edit page: new "Alerts" section with the SMTP fields and a
-  repeatable email-address list input.
+- Tenant edit page: new "Alerts" section with the SMTP fields, a
+  repeatable email-address list input, and a "Send test email" button that
+  sends a one-off test message through the configured SMTP settings so a
+  tenant can confirm the config works before relying on it.
 - Gateway edit form: "Enable inactivity alerts" checkbox, checked by
   default for new gateways.
 - Device edit form: same checkbox (general tab), checked by default for
@@ -211,8 +224,3 @@ existing `make proto` pipeline.
   called out explicitly since no SMTP integration-test harness exists in
   the repo today.
 
-## Open assumptions to verify during implementation
-
-- `uplink_interval == 0` meaning "not configured, skip alerting" is an
-  assumption based on it being the DB default; confirm no existing
-  validation already forbids 0 or treats it differently.
