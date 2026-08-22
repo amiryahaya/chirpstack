@@ -17,7 +17,7 @@
 - Never-seen entities (`last_seen_at IS NULL`) are skipped entirely — no alerting without a baseline.
 - SMTP credentials are stored as plaintext in Postgres/SQLite, matching the existing convention for all other integration credentials in this codebase (e.g. `AwsSnsConfiguration.secret_access_key`). This is a known pre-existing limitation, not new scope.
 - `alert_enabled` proto fields are `optional bool` (proto3 explicit presence), matching this fork's existing convention for resolving default-value ambiguity (see the `GatewayState` filter's use of `optional` in `ListGatewaysRequest`). This lets the backend apply "default true" only when a client omits the field, while the UI always sets it explicitly.
-- Reuse `fields::StringVec` (`chirpstack/chirpstack/src/storage/fields/string_vec.rs`) for the email address list — do not invent a new custom Diesel type.
+- Reuse `fields::StringVec` (`chirpstack/src/storage/fields/string_vec.rs`) for the email address list — do not invent a new custom Diesel type.
 - New dependency: `lettre = "0.11"` with `tokio1-rustls-tls`, `smtp-transport`, `builder` features, matching the project's existing rustls-only TLS convention (see `reqwest` in the workspace `Cargo.toml`).
 - All new background-loop code follows the existing scheduler pattern exactly: `loop { work().await; sleep(interval).await }`, `trace!`/`error!` logging via `tracing`, config pulled once via `config::get()`.
 - Every `diesel::sql_query` that does backend-specific date arithmetic must have both a `#[cfg(feature = "postgres")]` and `#[cfg(feature = "sqlite")]` implementation, matching `gateway::get_counts_by_state()` / `device::get_active_inactive()`.
@@ -27,20 +27,20 @@
 ## Task 1: Tenant SMTP + alert email storage
 
 **Files:**
-- Create: `chirpstack/chirpstack/migrations_postgres/<generated>_add_tenant_alert_config/up.sql`
-- Create: `chirpstack/chirpstack/migrations_postgres/<generated>_add_tenant_alert_config/down.sql`
-- Create: `chirpstack/chirpstack/migrations_sqlite/<generated>_add_tenant_alert_config/up.sql`
-- Create: `chirpstack/chirpstack/migrations_sqlite/<generated>_add_tenant_alert_config/down.sql`
-- Modify: `chirpstack/chirpstack/src/storage/tenant.rs`
-- Modify (auto-generated, do not hand-edit beyond running the make target): `chirpstack/chirpstack/src/storage/schema_postgres.rs`, `chirpstack/chirpstack/src/storage/schema_sqlite.rs`
-- Test: `chirpstack/chirpstack/src/storage/tenant.rs` (inline `#[cfg(test)] mod test`)
+- Create: `chirpstack/migrations_postgres/<generated>_add_tenant_alert_config/up.sql`
+- Create: `chirpstack/migrations_postgres/<generated>_add_tenant_alert_config/down.sql`
+- Create: `chirpstack/migrations_sqlite/<generated>_add_tenant_alert_config/up.sql`
+- Create: `chirpstack/migrations_sqlite/<generated>_add_tenant_alert_config/down.sql`
+- Modify: `chirpstack/src/storage/tenant.rs`
+- Modify (auto-generated, do not hand-edit beyond running the make target): `chirpstack/src/storage/schema_postgres.rs`, `chirpstack/src/storage/schema_sqlite.rs`
+- Test: `chirpstack/src/storage/tenant.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Produces: `Tenant` struct gains `alert_smtp_host: String`, `alert_smtp_port: i32`, `alert_smtp_username: String`, `alert_smtp_password: String`, `alert_smtp_from_email: String`, `alert_smtp_use_tls: bool`, `alert_email_addresses: fields::StringVec`. `tenant::create()`/`tenant::get()`/`tenant::update()` persist all of these.
 
 - [ ] **Step 1: Write the failing test**
 
-Add to the existing `pub mod test` block in `chirpstack/chirpstack/src/storage/tenant.rs` (follow the exact create/get/update/assert_eq shape already used by the other tests in that module):
+Add to the existing `pub mod test` block in `chirpstack/src/storage/tenant.rs` (follow the exact create/get/update/assert_eq shape already used by the other tests in that module):
 
 ```rust
 #[tokio::test]
@@ -78,12 +78,12 @@ async fn test_alert_config() {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::tenant::test::test_alert_config -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::tenant::test::test_alert_config -- --nocapture`
 Expected: FAIL to compile — `Tenant` has no field `alert_smtp_host` (etc.), and no such column exists yet.
 
 - [ ] **Step 3: Write the migrations**
 
-Run `cd chirpstack/chirpstack && diesel --config-file diesel_postgres.toml migration --migration-dir migrations_postgres generate add_tenant_alert_config` and `diesel --config-file diesel_sqlite.toml migration --migration-dir migrations_sqlite generate add_tenant_alert_config` to create the timestamped folders, then fill in:
+Run `cd chirpstack && diesel --config-file diesel_postgres.toml migration --migration-dir migrations_postgres generate add_tenant_alert_config` and `diesel --config-file diesel_sqlite.toml migration --migration-dir migrations_sqlite generate add_tenant_alert_config` to create the timestamped folders, then fill in:
 
 `migrations_postgres/<ts>_add_tenant_alert_config/up.sql`:
 ```sql
@@ -122,7 +122,7 @@ alter table tenant add column alert_email_addresses text not null default '[]';
 
 Then regenerate the Diesel schema for both backends:
 ```bash
-cd chirpstack/chirpstack
+cd chirpstack
 make migration-run DATABASE=postgres
 make migration-run DATABASE=sqlite
 ```
@@ -140,7 +140,7 @@ and `schema_sqlite.rs`'s `tenant` block ends with the same column names typed `T
 
 - [ ] **Step 4: Update the `Tenant` struct and CRUD functions**
 
-In `chirpstack/chirpstack/src/storage/tenant.rs`, append to the `Tenant` struct (order must match the migration's column-append order):
+In `chirpstack/src/storage/tenant.rs`, append to the `Tenant` struct (order must match the migration's column-append order):
 
 ```rust
 pub alert_smtp_host: String,
@@ -177,15 +177,15 @@ tenant::alert_email_addresses.eq(&t.alert_email_addresses),
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::tenant::test::test_alert_config -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::tenant::test::test_alert_config -- --nocapture`
 Expected: PASS
 
-Also run with `--features sqlite` if the project's test setup supports switching backends locally (check `chirpstack/chirpstack/Makefile`'s `test` target for how CI runs both).
+Also run with `--features sqlite` if the project's test setup supports switching backends locally (check `chirpstack/Makefile`'s `test` target for how CI runs both).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add chirpstack/chirpstack/migrations_postgres chirpstack/chirpstack/migrations_sqlite chirpstack/chirpstack/src/storage/tenant.rs chirpstack/chirpstack/src/storage/schema_postgres.rs chirpstack/chirpstack/src/storage/schema_sqlite.rs
+git add chirpstack/migrations_postgres chirpstack/migrations_sqlite chirpstack/src/storage/tenant.rs chirpstack/src/storage/schema_postgres.rs chirpstack/src/storage/schema_sqlite.rs
 git commit -m "feat: add tenant alert SMTP config and email address list"
 ```
 
@@ -194,10 +194,10 @@ git commit -m "feat: add tenant alert SMTP config and email address list"
 ## Task 2: Gateway alert-enabled + alert-state storage
 
 **Files:**
-- Create: `chirpstack/chirpstack/migrations_postgres/<generated>_add_gateway_alert_state/up.sql` + `down.sql`
-- Create: `chirpstack/chirpstack/migrations_sqlite/<generated>_add_gateway_alert_state/up.sql` + `down.sql`
-- Modify: `chirpstack/chirpstack/src/storage/gateway.rs`
-- Test: `chirpstack/chirpstack/src/storage/gateway.rs` (inline `#[cfg(test)] mod test`)
+- Create: `chirpstack/migrations_postgres/<generated>_add_gateway_alert_state/up.sql` + `down.sql`
+- Create: `chirpstack/migrations_sqlite/<generated>_add_gateway_alert_state/up.sql` + `down.sql`
+- Modify: `chirpstack/src/storage/gateway.rs`
+- Test: `chirpstack/src/storage/gateway.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Consumes: nothing new from Task 1.
@@ -246,7 +246,7 @@ This uses `storage::tenant::test::create_tenant() -> Tenant`, the shared fixture
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::gateway::test::test_alert_enabled_and_state -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::gateway::test::test_alert_enabled_and_state -- --nocapture`
 Expected: FAIL to compile — no `alert_enabled`/`alert_state` fields or functions exist yet.
 
 - [ ] **Step 3: Write the migrations**
@@ -263,7 +263,7 @@ alter table gateway drop column alert_state;
 ```
 `migrations_sqlite/<ts>_add_gateway_alert_state/up.sql` / `down.sql`: identical SQL (SQLite accepts `boolean`/`smallint` as type affinities, matching the codebase's existing convention).
 
-Run `make migration-run DATABASE=postgres` and `make migration-run DATABASE=sqlite` from `chirpstack/chirpstack`, and verify the `gateway` table block in both schema files gains `alert_enabled -> Bool,` and `alert_state -> Int2,`.
+Run `make migration-run DATABASE=postgres` and `make migration-run DATABASE=sqlite` from `chirpstack`, and verify the `gateway` table block in both schema files gains `alert_enabled -> Bool,` and `alert_state -> Int2,`.
 
 - [ ] **Step 4: Update the `Gateway` struct and add the two new functions**
 
@@ -328,13 +328,13 @@ pub async fn set_alert_state(gateway_id: &EUI64, state: i16) -> Result<(), Error
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::gateway::test::test_alert_enabled_and_state -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::gateway::test::test_alert_enabled_and_state -- --nocapture`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add chirpstack/chirpstack/migrations_postgres chirpstack/chirpstack/migrations_sqlite chirpstack/chirpstack/src/storage/gateway.rs chirpstack/chirpstack/src/storage/schema_postgres.rs chirpstack/chirpstack/src/storage/schema_sqlite.rs
+git add chirpstack/migrations_postgres chirpstack/migrations_sqlite chirpstack/src/storage/gateway.rs chirpstack/src/storage/schema_postgres.rs chirpstack/src/storage/schema_sqlite.rs
 git commit -m "feat: add gateway alert_enabled and alert_state columns"
 ```
 
@@ -343,10 +343,10 @@ git commit -m "feat: add gateway alert_enabled and alert_state columns"
 ## Task 3: Device alert-enabled + alert-state storage
 
 **Files:**
-- Create: `chirpstack/chirpstack/migrations_postgres/<generated>_add_device_alert_state/up.sql` + `down.sql`
-- Create: `chirpstack/chirpstack/migrations_sqlite/<generated>_add_device_alert_state/up.sql` + `down.sql`
-- Modify: `chirpstack/chirpstack/src/storage/device.rs`
-- Test: `chirpstack/chirpstack/src/storage/device.rs` (inline `#[cfg(test)] mod test`)
+- Create: `chirpstack/migrations_postgres/<generated>_add_device_alert_state/up.sql` + `down.sql`
+- Create: `chirpstack/migrations_sqlite/<generated>_add_device_alert_state/up.sql` + `down.sql`
+- Modify: `chirpstack/src/storage/device.rs`
+- Test: `chirpstack/src/storage/device.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Produces: `Device` struct gains `alert_enabled: bool`, `alert_state: i16`. New functions: `device::set_alert_enabled(dev_eui: &EUI64, enabled: bool) -> Result<(), Error>` (same reset-on-enable semantics as Task 2) and `device::set_alert_state(dev_eui: &EUI64, state: i16) -> Result<(), Error>`.
@@ -397,7 +397,7 @@ async fn test_alert_enabled_and_state() {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::device::test::test_alert_enabled_and_state -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::device::test::test_alert_enabled_and_state -- --nocapture`
 Expected: FAIL to compile.
 
 - [ ] **Step 3: Write the migrations**
@@ -477,13 +477,13 @@ pub async fn set_alert_state(dev_eui: &EUI64, state: i16) -> Result<(), Error> {
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::device::test::test_alert_enabled_and_state -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::device::test::test_alert_enabled_and_state -- --nocapture`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add chirpstack/chirpstack/migrations_postgres chirpstack/chirpstack/migrations_sqlite chirpstack/chirpstack/src/storage/device.rs chirpstack/chirpstack/src/storage/schema_postgres.rs chirpstack/chirpstack/src/storage/schema_sqlite.rs
+git add chirpstack/migrations_postgres chirpstack/migrations_sqlite chirpstack/src/storage/device.rs chirpstack/src/storage/schema_postgres.rs chirpstack/src/storage/schema_sqlite.rs
 git commit -m "feat: add device alert_enabled and alert_state columns"
 ```
 
@@ -492,11 +492,11 @@ git commit -m "feat: add device alert_enabled and alert_state columns"
 ## Task 4: Alert event audit log storage
 
 **Files:**
-- Create: `chirpstack/chirpstack/migrations_postgres/<generated>_create_alert_event/up.sql` + `down.sql`
-- Create: `chirpstack/chirpstack/migrations_sqlite/<generated>_create_alert_event/up.sql` + `down.sql`
-- Create: `chirpstack/chirpstack/src/storage/alert_event.rs`
-- Modify: `chirpstack/chirpstack/src/storage/mod.rs` (register the new module — follow how `tenant`/`gateway`/`device` are declared there)
-- Test: `chirpstack/chirpstack/src/storage/alert_event.rs` (inline `#[cfg(test)] mod test`)
+- Create: `chirpstack/migrations_postgres/<generated>_create_alert_event/up.sql` + `down.sql`
+- Create: `chirpstack/migrations_sqlite/<generated>_create_alert_event/up.sql` + `down.sql`
+- Create: `chirpstack/src/storage/alert_event.rs`
+- Modify: `chirpstack/src/storage/mod.rs` (register the new module — follow how `tenant`/`gateway`/`device` are declared there)
+- Test: `chirpstack/src/storage/alert_event.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Consumes: `fields::Uuid` (existing), `lrwn::EUI64` (existing).
@@ -504,7 +504,7 @@ git commit -m "feat: add device alert_enabled and alert_state columns"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `chirpstack/chirpstack/src/storage/alert_event.rs` with:
+Create `chirpstack/src/storage/alert_event.rs` with:
 
 ```rust
 use chrono::{DateTime, Utc};
@@ -571,12 +571,12 @@ pub mod test {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::alert_event::test::test_insert -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::alert_event::test::test_insert -- --nocapture`
 Expected: FAIL — module not registered in `storage/mod.rs`, table doesn't exist yet.
 
 - [ ] **Step 3: Register the module**
 
-In `chirpstack/chirpstack/src/storage/mod.rs`, add `pub mod alert_event;` alongside the existing `pub mod tenant;`, `pub mod gateway;`, `pub mod device;` declarations.
+In `chirpstack/src/storage/mod.rs`, add `pub mod alert_event;` alongside the existing `pub mod tenant;`, `pub mod gateway;`, `pub mod device;` declarations.
 
 - [ ] **Step 4: Write the migrations**
 
@@ -623,13 +623,13 @@ Run `make migration-run DATABASE=postgres` and `make migration-run DATABASE=sqli
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::alert_event::test::test_insert -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::alert_event::test::test_insert -- --nocapture`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add chirpstack/chirpstack/migrations_postgres chirpstack/chirpstack/migrations_sqlite chirpstack/chirpstack/src/storage/alert_event.rs chirpstack/chirpstack/src/storage/mod.rs chirpstack/chirpstack/src/storage/schema_postgres.rs chirpstack/chirpstack/src/storage/schema_sqlite.rs
+git add chirpstack/migrations_postgres chirpstack/migrations_sqlite chirpstack/src/storage/alert_event.rs chirpstack/src/storage/mod.rs chirpstack/src/storage/schema_postgres.rs chirpstack/src/storage/schema_sqlite.rs
 git commit -m "feat: add alert_event audit log table"
 ```
 
@@ -638,17 +638,17 @@ git commit -m "feat: add alert_event audit log table"
 ## Task 5: Alert state transition logic (pure)
 
 **Files:**
-- Create: `chirpstack/chirpstack/src/alert/mod.rs`
-- Create: `chirpstack/chirpstack/src/alert/state.rs`
-- Modify: `chirpstack/chirpstack/src/lib.rs` (register `pub mod alert;` — check exactly how `pub mod downlink;` is declared there and copy the pattern)
-- Test: `chirpstack/chirpstack/src/alert/state.rs` (inline `#[cfg(test)] mod test`)
+- Create: `chirpstack/src/alert/mod.rs`
+- Create: `chirpstack/src/alert/state.rs`
+- Modify: `chirpstack/src/lib.rs` (register `pub mod alert;` — check exactly how `pub mod downlink;` is declared there and copy the pattern)
+- Test: `chirpstack/src/alert/state.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Produces: `alert::state::AlertState` enum (`Unknown`/`Active`/`Inactive`, with `from_i16`/`to_i16`), `alert::state::Transition` enum (`None`/`RecordOnly`/`WentInactive`/`Recovered`), `alert::state::evaluate(previous: AlertState, is_inactive: bool) -> (AlertState, Transition)`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `chirpstack/chirpstack/src/alert/state.rs`:
+Create `chirpstack/src/alert/state.rs`:
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -742,29 +742,29 @@ mod test {
 }
 ```
 
-Create `chirpstack/chirpstack/src/alert/mod.rs` with just:
+Create `chirpstack/src/alert/mod.rs` with just:
 ```rust
 pub mod state;
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test alert::state::test -- --nocapture`
+Run: `cd chirpstack && cargo test alert::state::test -- --nocapture`
 Expected: FAIL to compile — `alert` module not registered in `lib.rs` yet.
 
 - [ ] **Step 3: Register the module**
 
-In `chirpstack/chirpstack/src/lib.rs`, add `pub mod alert;` next to the existing `pub mod downlink;` (or wherever the top-level module list lives — match its exact ordering/style).
+In `chirpstack/src/lib.rs`, add `pub mod alert;` next to the existing `pub mod downlink;` (or wherever the top-level module list lives — match its exact ordering/style).
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test alert::state::test -- --nocapture`
+Run: `cd chirpstack && cargo test alert::state::test -- --nocapture`
 Expected: PASS (both `test_evaluate` and `test_state_i16_roundtrip`)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add chirpstack/chirpstack/src/alert chirpstack/chirpstack/src/lib.rs
+git add chirpstack/src/alert chirpstack/src/lib.rs
 git commit -m "feat: add pure alert state transition logic"
 ```
 
@@ -773,8 +773,8 @@ git commit -m "feat: add pure alert state transition logic"
 ## Task 6: Gateway alert candidate query
 
 **Files:**
-- Modify: `chirpstack/chirpstack/src/storage/gateway.rs`
-- Test: `chirpstack/chirpstack/src/storage/gateway.rs` (inline `#[cfg(test)] mod test`)
+- Modify: `chirpstack/src/storage/gateway.rs`
+- Test: `chirpstack/src/storage/gateway.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Consumes: Task 2's `Gateway.alert_enabled`/`alert_state` columns.
@@ -836,7 +836,7 @@ async fn test_get_alert_candidates() {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::gateway::test::test_get_alert_candidates -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::gateway::test::test_get_alert_candidates -- --nocapture`
 Expected: FAIL to compile — no such struct/function.
 
 - [ ] **Step 3: Implement the query**
@@ -899,13 +899,13 @@ pub async fn get_alert_candidates() -> Result<Vec<GatewayAlertCandidate>, Error>
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::gateway::test::test_get_alert_candidates -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::gateway::test::test_get_alert_candidates -- --nocapture`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add chirpstack/chirpstack/src/storage/gateway.rs
+git add chirpstack/src/storage/gateway.rs
 git commit -m "feat: add gateway alert candidate query"
 ```
 
@@ -914,8 +914,8 @@ git commit -m "feat: add gateway alert candidate query"
 ## Task 7: Device alert candidate query
 
 **Files:**
-- Modify: `chirpstack/chirpstack/src/storage/device.rs`
-- Test: `chirpstack/chirpstack/src/storage/device.rs` (inline `#[cfg(test)] mod test`)
+- Modify: `chirpstack/src/storage/device.rs`
+- Test: `chirpstack/src/storage/device.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Consumes: Task 3's `Device.alert_enabled`/`alert_state` columns.
@@ -996,7 +996,7 @@ async fn test_get_alert_candidates() {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::device::test::test_get_alert_candidates -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::device::test::test_get_alert_candidates -- --nocapture`
 Expected: FAIL to compile.
 
 - [ ] **Step 3: Implement the query**
@@ -1063,13 +1063,13 @@ pub async fn get_alert_candidates() -> Result<Vec<DeviceAlertCandidate>, Error> 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres storage::device::test::test_get_alert_candidates -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres storage::device::test::test_get_alert_candidates -- --nocapture`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add chirpstack/chirpstack/src/storage/device.rs
+git add chirpstack/src/storage/device.rs
 git commit -m "feat: add device alert candidate query"
 ```
 
@@ -1079,10 +1079,10 @@ git commit -m "feat: add device alert candidate query"
 
 **Files:**
 - Modify: `Cargo.toml` (workspace root)
-- Modify: `chirpstack/chirpstack/Cargo.toml`
-- Create: `chirpstack/chirpstack/src/alert/email.rs`
-- Modify: `chirpstack/chirpstack/src/alert/mod.rs` (add `pub mod email;`)
-- Test: `chirpstack/chirpstack/src/alert/email.rs` (inline `#[cfg(test)] mod test`)
+- Modify: `chirpstack/Cargo.toml`
+- Create: `chirpstack/src/alert/email.rs`
+- Modify: `chirpstack/src/alert/mod.rs` (add `pub mod email;`)
+- Test: `chirpstack/src/alert/email.rs` (inline `#[cfg(test)] mod test`)
 
 **Interfaces:**
 - Consumes: Task 1's `Tenant.alert_smtp_*`/`alert_email_addresses` fields.
@@ -1090,7 +1090,7 @@ git commit -m "feat: add device alert candidate query"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `chirpstack/chirpstack/src/alert/email.rs`:
+Create `chirpstack/src/alert/email.rs`:
 
 ```rust
 use anyhow::{Context, Result};
@@ -1235,7 +1235,7 @@ mod test {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test alert::email::test -- --nocapture`
+Run: `cd chirpstack && cargo test alert::email::test -- --nocapture`
 Expected: FAIL to compile — `lettre` isn't a dependency yet, and `email` isn't registered in `alert/mod.rs`.
 
 - [ ] **Step 3: Add the `lettre` dependency**
@@ -1245,7 +1245,7 @@ In the workspace root `Cargo.toml`, add to `[workspace.dependencies]` (near the 
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
 ```
 
-In `chirpstack/chirpstack/Cargo.toml`, add under a new `# Alerting` comment block, matching the `reqwest.workspace = true` style already used there:
+In `chirpstack/Cargo.toml`, add under a new `# Alerting` comment block, matching the `reqwest.workspace = true` style already used there:
 ```toml
 lettre.workspace = true
 ```
@@ -1254,17 +1254,17 @@ Run `cargo check -p chirpstack` from the repo root to confirm the dependency res
 
 - [ ] **Step 4: Register the module**
 
-In `chirpstack/chirpstack/src/alert/mod.rs`, add `pub mod email;` next to `pub mod state;`.
+In `chirpstack/src/alert/mod.rs`, add `pub mod email;` next to `pub mod state;`.
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test alert::email::test -- --nocapture`
+Run: `cd chirpstack && cargo test alert::email::test -- --nocapture`
 Expected: PASS (`test_subject_for`, `test_body_for`)
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Cargo.toml Cargo.lock chirpstack/chirpstack/Cargo.toml chirpstack/chirpstack/src/alert
+git add Cargo.toml Cargo.lock chirpstack/Cargo.toml chirpstack/src/alert
 git commit -m "feat: add SMTP-based alert email sending"
 ```
 
@@ -1273,10 +1273,10 @@ git commit -m "feat: add SMTP-based alert email sending"
 ## Task 9: Reaper loop and config wiring
 
 **Files:**
-- Modify: `chirpstack/chirpstack/src/config.rs`
-- Modify: `chirpstack/chirpstack/src/alert/mod.rs`
-- Modify: `chirpstack/chirpstack/src/cmd/root.rs`
-- Test: `chirpstack/chirpstack/src/alert/mod.rs` (inline `#[cfg(test)] mod test`, DB-backed)
+- Modify: `chirpstack/src/config.rs`
+- Modify: `chirpstack/src/alert/mod.rs`
+- Modify: `chirpstack/src/cmd/root.rs`
+- Test: `chirpstack/src/alert/mod.rs` (inline `#[cfg(test)] mod test`, DB-backed)
 
 **Interfaces:**
 - Consumes: Task 5's `evaluate()`/`AlertState`/`Transition`, Task 6's `gateway::get_alert_candidates()`/`set_alert_state()`, Task 7's `device::get_alert_candidates()`/`set_alert_state()`, Task 8's `email::send_transition_email()`, Task 4's `alert_event::insert()`.
@@ -1284,7 +1284,7 @@ git commit -m "feat: add SMTP-based alert email sending"
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `chirpstack/chirpstack/src/alert/mod.rs`:
+Add to `chirpstack/src/alert/mod.rs`:
 
 ```rust
 #[cfg(test)]
@@ -1321,12 +1321,12 @@ mod test {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres alert::test::test_scan_gateways_records_first_observation_without_email -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres alert::test::test_scan_gateways_records_first_observation_without_email -- --nocapture`
 Expected: FAIL to compile — `scan_gateways` doesn't exist yet.
 
 - [ ] **Step 3: Add the config field**
 
-In `chirpstack/chirpstack/src/config.rs`, add to the existing `Monitoring` struct:
+In `chirpstack/src/config.rs`, add to the existing `Monitoring` struct:
 ```rust
 #[serde(with = "humantime_serde")]
 pub alert_interval: Duration,
@@ -1338,7 +1338,7 @@ alert_interval: Duration::from_secs(30 * 60),
 
 - [ ] **Step 4: Implement the reaper**
 
-Replace `chirpstack/chirpstack/src/alert/mod.rs`'s contents with:
+Replace `chirpstack/src/alert/mod.rs`'s contents with:
 
 ```rust
 pub mod email;
@@ -1462,17 +1462,17 @@ Then re-add the `mod test { ... }` block from Step 1 at the bottom of the file.
 
 - [ ] **Step 5: Wire into startup**
 
-In `chirpstack/chirpstack/src/cmd/root.rs`, add `use crate::alert;` to the import group, and insert `alert::setup().await;` immediately after `downlink::setup().await;` and before `fuota::setup().await;`.
+In `chirpstack/src/cmd/root.rs`, add `use crate::alert;` to the import group, and insert `alert::setup().await;` immediately after `downlink::setup().await;` and before `fuota::setup().await;`.
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres alert::test::test_scan_gateways_records_first_observation_without_email -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres alert::test::test_scan_gateways_records_first_observation_without_email -- --nocapture`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add chirpstack/chirpstack/src/config.rs chirpstack/chirpstack/src/alert/mod.rs chirpstack/chirpstack/src/cmd/root.rs
+git add chirpstack/src/config.rs chirpstack/src/alert/mod.rs chirpstack/src/cmd/root.rs
 git commit -m "feat: wire up inactivity alert reaper background loop"
 ```
 
@@ -1558,7 +1558,7 @@ Expected: compiles cleanly with the new generated fields/RPC present in `chirpst
 - [ ] **Step 6: Commit**
 
 ```bash
-git add api/proto chirpstack/chirpstack/src/api ui/src/store  # regenerated files land under these paths per the make proto pipeline
+git add api/proto chirpstack/src/api ui/src/store  # regenerated files land under these paths per the make proto pipeline
 git commit -m "feat: add alert proto fields and TestAlertEmail RPC"
 ```
 
@@ -1567,7 +1567,7 @@ git commit -m "feat: add alert proto fields and TestAlertEmail RPC"
 ## Task 11: Tenant API handler
 
 **Files:**
-- Modify: `chirpstack/chirpstack/src/api/tenant.rs`
+- Modify: `chirpstack/src/api/tenant.rs`
 
 **Interfaces:**
 - Consumes: Task 8's `alert::email::send_test_email()`, Task 10's generated `api::Tenant` fields and `api::TestAlertEmailRequest`.
@@ -1633,13 +1633,13 @@ async fn test_alert_email(
 
 - [ ] **Step 4: Verify it compiles and existing tests still pass**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres api::tenant:: -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres api::tenant:: -- --nocapture`
 Expected: PASS (existing tenant API tests unaffected; if any existing test constructs an `api::Tenant` literal, it will need the 7 new fields added — fix those call sites).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add chirpstack/chirpstack/src/api/tenant.rs
+git add chirpstack/src/api/tenant.rs
 git commit -m "feat: expose tenant alert config and TestAlertEmail over the API"
 ```
 
@@ -1648,7 +1648,7 @@ git commit -m "feat: expose tenant alert config and TestAlertEmail over the API"
 ## Task 12: Gateway API handler
 
 **Files:**
-- Modify: `chirpstack/chirpstack/src/api/gateway.rs`
+- Modify: `chirpstack/src/api/gateway.rs`
 
 **Interfaces:**
 - Consumes: Task 2's `gateway::set_alert_enabled()`, Task 10's generated `optional bool alert_enabled` on `api::Gateway`.
@@ -1682,13 +1682,13 @@ if let Some(enabled) = req_gateway.alert_enabled {
 
 - [ ] **Step 4: Verify it compiles and existing tests still pass**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres api::gateway:: -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres api::gateway:: -- --nocapture`
 Expected: PASS (fix any existing test's `api::Gateway { ... }` literal to include `alert_enabled: Some(true)` or similar).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add chirpstack/chirpstack/src/api/gateway.rs
+git add chirpstack/src/api/gateway.rs
 git commit -m "feat: expose gateway alert_enabled over the API"
 ```
 
@@ -1697,7 +1697,7 @@ git commit -m "feat: expose gateway alert_enabled over the API"
 ## Task 13: Device API handler
 
 **Files:**
-- Modify: `chirpstack/chirpstack/src/api/device.rs`
+- Modify: `chirpstack/src/api/device.rs`
 
 **Interfaces:**
 - Consumes: Task 3's `device::set_alert_enabled()`, Task 10's generated `optional bool alert_enabled` on `api::Device`.
@@ -1731,13 +1731,13 @@ if let Some(enabled) = req_device.alert_enabled {
 
 - [ ] **Step 4: Verify it compiles and existing tests still pass**
 
-Run: `cd chirpstack/chirpstack && cargo test --features postgres api::device:: -- --nocapture`
+Run: `cd chirpstack && cargo test --features postgres api::device:: -- --nocapture`
 Expected: PASS (fix any existing test's `api::Device { ... }` literal similarly to Task 12).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add chirpstack/chirpstack/src/api/device.rs
+git add chirpstack/src/api/device.rs
 git commit -m "feat: expose device alert_enabled over the API"
 ```
 

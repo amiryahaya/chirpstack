@@ -41,12 +41,12 @@ disabled individually per entity.
 
 - Gateway online/offline is computed on read, not stored: `Utc::now() -
   last_seen_at > Duration::seconds(stats_interval_secs * 2)` in
-  `chirpstack/chirpstack/src/api/gateway.rs` (list handler) and duplicated in
-  raw SQL in `chirpstack/chirpstack/src/storage/gateway.rs`
+  `chirpstack/src/api/gateway.rs` (list handler) and duplicated in
+  raw SQL in `chirpstack/src/storage/gateway.rs`
   (`get_counts_by_state`). `stats_interval_secs` is a per-gateway column,
   default 30s.
 - Devices have no derived active/inactive *state field* today, but
-  `chirpstack/chirpstack/src/storage/device.rs` already has a function,
+  `chirpstack/src/storage/device.rs` already has a function,
   `get_active_inactive()`, that computes tenant-wide active/inactive counts
   using the threshold `device_profile.uplink_interval * 1.5`. This is the
   exact existing convention this feature must reuse for its own per-device
@@ -57,17 +57,17 @@ disabled individually per entity.
   factor is the codebase's existing interpretation of "expired.")
 - No background/periodic job scheduler exists generically. The closest
   reusable pattern is the downlink scheduler
-  (`chirpstack/chirpstack/src/downlink/scheduler.rs`,
-  `chirpstack/chirpstack/src/downlink/mod.rs`): `tokio::spawn(async move {
+  (`chirpstack/src/downlink/scheduler.rs`,
+  `chirpstack/src/downlink/mod.rs`): `tokio::spawn(async move {
   loop { ...; sleep(interval).await; } })`, wired up in
-  `chirpstack/chirpstack/src/cmd/root.rs`.
+  `chirpstack/src/cmd/root.rs`.
 - No email-sending capability exists anywhere in ChirpStack today. This
   feature introduces the first one (new `lettre` dependency).
 - A `Monitoring` config struct already exists in
-  `chirpstack/chirpstack/src/config.rs` (part of the top-level
+  `chirpstack/src/config.rs` (part of the top-level
   `Configuration`). The reaper's scan interval is a new field on this
   existing struct, not a new top-level config section.
-- `chirpstack/chirpstack/src/storage/fields/string_vec.rs` already defines
+- `chirpstack/src/storage/fields/string_vec.rs` already defines
   `StringVec(Vec<Option<String>>)` with `ToSql`/`FromSql` for both Postgres
   (`Array<Nullable<Text>>`) and SQLite (JSON-encoded `Text`) — exactly the
   shape needed for a list of alert email addresses. No new custom type is
@@ -75,7 +75,7 @@ disabled individually per entity.
 - No encryption-at-rest exists for any stored credential. Integration
   credentials (e.g. `AwsSnsConfiguration.secret_access_key`,
   `AzureServiceBusConfiguration.connection_string` in
-  `chirpstack/chirpstack/src/storage/application.rs`) are stored as
+  `chirpstack/src/storage/application.rs`) are stored as
   plaintext JSON. Tenant SMTP credentials will follow the same convention
   for consistency; this is a known, pre-existing limitation of the codebase,
   not a gap introduced by this feature.
@@ -131,8 +131,8 @@ by regenerating `schema_postgres.rs` / `schema_sqlite.rs` / `schema.rs`.
 
 ## Background alert monitor
 
-New module `chirpstack/chirpstack/src/alert/mod.rs`, spawned from
-`chirpstack/chirpstack/src/cmd/root.rs` the same way the downlink scheduler
+New module `chirpstack/src/alert/mod.rs`, spawned from
+`chirpstack/src/cmd/root.rs` the same way the downlink scheduler
 is spawned:
 
 ```
@@ -180,7 +180,7 @@ at that instant.
 
 ## Email delivery
 
-New `chirpstack/chirpstack/src/alert/email.rs`, using the `lettre` crate
+New `chirpstack/src/alert/email.rs`, using the `lettre` crate
 (new dependency) against the tenant's own SMTP settings
 (`alert_smtp_host`/`port`/`username`/`password`/`from_email`/`use_tls`).
 
