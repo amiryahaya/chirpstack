@@ -36,6 +36,14 @@ disabled individually per entity.
 - Non-email delivery channels (SMS, webhook, Slack, etc.).
 - Retry/backoff for failed SMTP sends, or alert throttling/digesting beyond
   one email per transition.
+- Multi-instance/HA coordination. The reaper does a plain read-then-write per
+  scan cycle with no cross-instance claiming (no `SELECT ... FOR UPDATE SKIP
+  LOCKED` or compare-and-swap on `alert_state`, unlike the downlink
+  scheduler's queue-claiming pattern). In a multi-replica ChirpStack
+  deployment, every replica independently observes the same transition and
+  sends duplicate alert emails. Acceptable for the common single-instance
+  deployment this feature targets; revisit if HA support becomes a
+  requirement.
 
 ## Existing behavior this builds on
 

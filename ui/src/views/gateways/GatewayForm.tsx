@@ -252,7 +252,7 @@ function GatewayForm(props: IProps) {
 
   const formInitialValues = {
     ...props.initialValues.toObject(),
-    ...((!props.update) && { alertEnabled: true }),
+    ...(!props.update && { alertEnabled: true }),
   };
 
   return (

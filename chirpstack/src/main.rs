@@ -16,9 +16,9 @@ use tracing_subscriber::{filter, prelude::*};
 
 use lrwn::EUI64;
 
-mod alert;
 mod adr;
 mod aeskey;
+mod alert;
 mod api;
 mod applayer;
 mod backend;

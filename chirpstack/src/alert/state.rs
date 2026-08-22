@@ -82,7 +82,11 @@ mod test {
 
     #[test]
     fn test_state_i16_roundtrip() {
-        for s in [AlertState::Unknown, AlertState::Active, AlertState::Inactive] {
+        for s in [
+            AlertState::Unknown,
+            AlertState::Active,
+            AlertState::Inactive,
+        ] {
             assert_eq!(s, AlertState::from_i16(s.to_i16()));
         }
     }

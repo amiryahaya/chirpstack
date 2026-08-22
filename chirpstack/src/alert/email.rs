@@ -67,6 +67,20 @@ pub fn body_for(
     }
 }
 
+// deliverable_addresses returns the tenant's configured alert email addresses with blank
+// (empty or whitespace-only) entries filtered out. This is the single definition of "does
+// this tenant have a usable alert email address" -- used both to decide whether sending is
+// worth attempting and to drive the actual send loops.
+pub fn deliverable_addresses(tenant: &Tenant) -> Vec<&str> {
+    tenant
+        .alert_email_addresses
+        .iter()
+        .flatten()
+        .map(|s| s.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .collect()
+}
+
 fn build_message(tenant: &Tenant, to: &str, subject: String, body: String) -> Result<Message> {
     Message::builder()
         .from(
@@ -88,10 +102,12 @@ async fn send(tenant: &Tenant, message: Message) -> Result<()> {
         tenant.alert_smtp_password.clone(),
     );
 
-    let mailer: AsyncSmtpTransport<Tokio1Executor> = if tenant.alert_smtp_use_tls {
+    let mailer: AsyncSmtpTransport<Tokio1Executor> = if !tenant.alert_smtp_use_tls {
+        AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&tenant.alert_smtp_host)
+    } else if tenant.alert_smtp_port == 465 {
         AsyncSmtpTransport::<Tokio1Executor>::relay(&tenant.alert_smtp_host)?
     } else {
-        AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&tenant.alert_smtp_host)
+        AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&tenant.alert_smtp_host)?
     }
     .port(tenant.alert_smtp_port as u16)
     .credentials(creds)
@@ -101,37 +117,49 @@ async fn send(tenant: &Tenant, message: Message) -> Result<()> {
     mailer.send(message).await.map(|_| ()).context("send email")
 }
 
+// send_transition_email attempts to send the transition email to every deliverable address
+// configured for the tenant, logging (and continuing past) per-recipient failures. It
+// returns true if at least one recipient was actually sent to successfully, so callers can
+// use it to record whether an email was truly sent (rather than merely attempted).
 pub async fn send_transition_email(
     tenant: &Tenant,
     kind: EntityKind,
     entity_name: &str,
     went_inactive: bool,
-) {
-    for addr in tenant.alert_email_addresses.iter().flatten() {
+) -> bool {
+    let mut any_sent = false;
+
+    for addr in deliverable_addresses(tenant) {
         let subject = subject_for(&tenant.name, kind, entity_name, went_inactive);
         let body = body_for(&tenant.name, kind, entity_name, went_inactive);
 
         match build_message(tenant, addr, subject, body) {
-            Ok(msg) => {
-                if let Err(e) = send(tenant, msg).await {
+            Ok(msg) => match send(tenant, msg).await {
+                Ok(_) => any_sent = true,
+                Err(e) => {
                     warn!(tenant_id = %tenant.id, to = %addr, error = %e, "Sending alert email failed");
                 }
-            }
+            },
             Err(e) => {
                 warn!(tenant_id = %tenant.id, to = %addr, error = %e, "Building alert email failed");
             }
         }
     }
+
+    any_sent
 }
 
 pub async fn send_test_email(tenant: &Tenant) -> Result<()> {
-    if tenant.alert_email_addresses.is_empty() {
+    let addresses = deliverable_addresses(tenant);
+    if addresses.is_empty() {
         anyhow::bail!("no alert email addresses configured for this tenant");
     }
 
-    for addr in tenant.alert_email_addresses.iter().flatten() {
+    for addr in addresses {
         let subject = format!("[{}] ChirpStack alert test email", tenant.name);
-        let body = "This is a test email from ChirpStack to verify your inactivity alert SMTP settings.".to_string();
+        let body =
+            "This is a test email from ChirpStack to verify your inactivity alert SMTP settings."
+                .to_string();
         let msg = build_message(tenant, addr, subject, body)?;
         send(tenant, msg).await?;
     }
@@ -163,6 +191,35 @@ mod test {
         assert_eq!(
             "Device 'sensor-1' in tenant 'Acme' is active again.",
             body_for("Acme", EntityKind::Device, "sensor-1", false)
+        );
+    }
+
+    #[test]
+    fn test_deliverable_addresses_filters_blanks() {
+        let mut tenant = Tenant::default();
+
+        tenant.alert_email_addresses = crate::storage::fields::StringVec::new(vec![]);
+        assert!(deliverable_addresses(&tenant).is_empty());
+
+        tenant.alert_email_addresses = crate::storage::fields::StringVec::new(vec![
+            Some("".to_string()),
+            Some("   ".to_string()),
+        ]);
+        assert!(
+            deliverable_addresses(&tenant).is_empty(),
+            "blank and whitespace-only entries must be filtered out"
+        );
+
+        tenant.alert_email_addresses = crate::storage::fields::StringVec::new(vec![
+            Some("".to_string()),
+            Some("a@example.com".to_string()),
+            Some("   ".to_string()),
+            Some("b@example.com".to_string()),
+            None,
+        ]);
+        assert_eq!(
+            vec!["a@example.com", "b@example.com"],
+            deliverable_addresses(&tenant)
         );
     }
 }

@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use lrwn::EUI64;
-use uuid::Uuid;
 
 use super::error::Error;
 use super::schema::alert_event;
@@ -34,9 +33,19 @@ pub async fn insert(ae: AlertEvent) -> Result<AlertEvent, Error> {
 
 #[cfg(test)]
 pub mod test {
+    use uuid::Uuid;
+
     use super::*;
     use crate::storage;
     use crate::test;
+
+    pub async fn list_for_entity(entity_id: EUI64) -> Vec<AlertEvent> {
+        alert_event::table
+            .filter(alert_event::entity_id.eq(&entity_id))
+            .load(&mut get_async_db_conn().await.unwrap())
+            .await
+            .unwrap()
+    }
 
     #[tokio::test]
     async fn test_insert() {

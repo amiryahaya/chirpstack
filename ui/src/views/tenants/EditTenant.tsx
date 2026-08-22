@@ -21,7 +21,7 @@ function EditTenant({ tenant }: { tenant: Tenant }) {
 
   const disabled = !SessionStore.isAdmin();
 
-  return <TenantForm initialValues={tenant} onFinish={onFinish} disabled={disabled} />;
+  return <TenantForm initialValues={tenant} onFinish={onFinish} disabled={disabled} update />;
 }
 
 export default EditTenant;

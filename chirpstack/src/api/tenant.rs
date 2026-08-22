@@ -625,12 +625,7 @@ impl TenantService for Tenant {
 
         let t = tenant::get(&tenant_id).await.map_err(|e| e.status())?;
 
-        let has_alert_email_address = t
-            .alert_email_addresses
-            .iter()
-            .flatten()
-            .any(|addr| !addr.trim().is_empty());
-        if !has_alert_email_address {
+        if crate::alert::email::deliverable_addresses(&t).is_empty() {
             return Err(Status::failed_precondition(
                 "no alert email addresses configured for this tenant",
             ));

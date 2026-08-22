@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::config;
 use crate::storage::{alert_event, device, fields, gateway, tenant};
 use email::EntityKind;
-use state::{evaluate, AlertState, Transition};
+use state::{AlertState, Transition, evaluate};
 
 pub async fn setup() {
     info!("Setting up inactivity alert reaper loop");
@@ -52,16 +52,13 @@ pub async fn scan_gateways() -> anyhow::Result<()> {
                 let went_inactive = matches!(transition, Transition::WentInactive);
                 match tenant::get(&c.tenant_id.into()).await {
                     Ok(t) => {
-                        let email_sent = !t.alert_email_addresses.is_empty();
-                        if email_sent {
-                            email::send_transition_email(
-                                &t,
-                                EntityKind::Gateway,
-                                &c.name,
-                                went_inactive,
-                            )
-                            .await;
-                        }
+                        let email_sent = email::send_transition_email(
+                            &t,
+                            EntityKind::Gateway,
+                            &c.name,
+                            went_inactive,
+                        )
+                        .await;
                         if let Err(e) = alert_event::insert(alert_event::AlertEvent {
                             id: fields::Uuid::from(Uuid::new_v4()),
                             entity_type: alert_event::ENTITY_TYPE_GATEWAY,
@@ -116,16 +113,13 @@ pub async fn scan_devices() -> anyhow::Result<()> {
                 let went_inactive = matches!(transition, Transition::WentInactive);
                 match tenant::get(&c.tenant_id.into()).await {
                     Ok(t) => {
-                        let email_sent = !t.alert_email_addresses.is_empty();
-                        if email_sent {
-                            email::send_transition_email(
-                                &t,
-                                EntityKind::Device,
-                                &c.name,
-                                went_inactive,
-                            )
-                            .await;
-                        }
+                        let email_sent = email::send_transition_email(
+                            &t,
+                            EntityKind::Device,
+                            &c.name,
+                            went_inactive,
+                        )
+                        .await;
                         if let Err(e) = alert_event::insert(alert_event::AlertEvent {
                             id: fields::Uuid::from(Uuid::new_v4()),
                             entity_type: alert_event::ENTITY_TYPE_DEVICE,
@@ -193,5 +187,57 @@ mod test {
         // First observation: alert_state moves from 0 (unknown) straight to 2 (inactive),
         // recorded silently -- no email possible anyway since the tenant has no addresses.
         assert_eq!(2, gw_get.alert_state);
+    }
+
+    #[tokio::test]
+    async fn test_scan_gateways_went_inactive_records_email_sent_false_on_send_failure() {
+        let _guard = test::prepare().await;
+
+        // A tenant with a deliverable address configured, but pointed at an SMTP relay that
+        // cannot be reached. This asserts that email_sent reflects actual send success, not
+        // merely that addresses were configured (the bug fixed alongside deliverable_addresses).
+        let t = storage::tenant::Tenant {
+            id: fields::Uuid::from(Uuid::new_v4()),
+            name: "test t2".into(),
+            can_have_gateways: true,
+            max_gateway_count: 10,
+            max_device_count: 20,
+            alert_email_addresses: storage::fields::StringVec::new(vec![Some(
+                "a@example.com".into(),
+            )]),
+            alert_smtp_host: "127.0.0.1".into(),
+            alert_smtp_port: 1,
+            alert_smtp_use_tls: false,
+            alert_smtp_from_email: "alerts@example.com".into(),
+            ..Default::default()
+        };
+        let t = storage::tenant::create(t).await.unwrap();
+
+        let gw = gateway::create(gateway::Gateway {
+            gateway_id: lrwn::EUI64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 9]),
+            tenant_id: t.id,
+            name: "test-gw-2".into(),
+            alert_enabled: true,
+            stats_interval_secs: 30,
+            last_seen_at: Some(chrono::Utc::now() - Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        // Seed alert_state as Active (1) so the scan (with an already-expired last_seen_at)
+        // produces a WentInactive transition instead of the first-observation RecordOnly path.
+        gateway::set_alert_state(&gw.gateway_id, 1).await.unwrap();
+
+        scan_gateways().await.unwrap();
+
+        let gw_get = gateway::get(&gw.gateway_id).await.unwrap();
+        assert_eq!(2, gw_get.alert_state);
+
+        let events = storage::alert_event::test::list_for_entity(gw.gateway_id).await;
+        assert_eq!(1, events.len());
+        assert!(
+            !events[0].email_sent,
+            "email_sent must be false when the SMTP send failed, even though addresses were configured"
+        );
     }
 }

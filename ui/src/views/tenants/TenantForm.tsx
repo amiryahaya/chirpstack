@@ -11,6 +11,7 @@ interface IProps {
   initialValues: Tenant;
   onFinish: (obj: Tenant) => void;
   disabled?: boolean;
+  update?: boolean;
 }
 
 function TenantForm(props: IProps) {
@@ -297,13 +298,13 @@ function TenantForm(props: IProps) {
     },
   ];
 
+  const formInitialValues = {
+    ...props.initialValues.toObject(),
+    ...(!props.update && { alertSmtpUseTls: true, alertSmtpPort: 587 }),
+  };
+
   return (
-    <Form
-      layout="vertical"
-      initialValues={props.initialValues.toObject()}
-      onFinish={onFinish}
-      onFinishFailed={onFinishFailed}
-    >
+    <Form layout="vertical" initialValues={formInitialValues} onFinish={onFinish} onFinishFailed={onFinishFailed}>
       <Tabs items={tabItems} />
       <Form.Item>
         <Button type="primary" htmlType="submit" disabled={props.disabled}>
