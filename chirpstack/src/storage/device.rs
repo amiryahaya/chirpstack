@@ -121,6 +121,8 @@ pub struct Device {
     pub device_session: Option<fields::DeviceSession>,
     pub app_layer_params: fields::device::AppLayerParams,
     pub f_cnt_up: i64,
+    pub alert_enabled: bool,
+    pub alert_state: i16,
 }
 
 #[derive(AsChangeset, Debug, Clone, Default)]
@@ -199,6 +201,8 @@ impl Default for Device {
             device_session: None,
             app_layer_params: Default::default(),
             f_cnt_up: 0,
+            alert_enabled: true,
+            alert_state: 0,
         }
     }
 }
@@ -606,6 +610,54 @@ pub async fn update(d: Device) -> Result<Device, Error> {
         .map_err(|e| Error::from_diesel(e, d.dev_eui.to_string()))?;
     info!(dev_eui = %d.dev_eui, "Device updated");
     Ok(d)
+}
+
+#[cfg(feature = "postgres")]
+pub async fn set_alert_enabled(dev_eui: &EUI64, enabled: bool) -> Result<(), Error> {
+    diesel::sql_query(
+        r#"
+        update device
+        set
+            alert_enabled = $2,
+            alert_state = case when alert_enabled = false and $2 = true then 0 else alert_state end
+        where dev_eui = $1
+        "#,
+    )
+    .bind::<diesel::sql_types::Binary, _>(dev_eui)
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .execute(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, dev_eui.to_string()))?;
+    Ok(())
+}
+
+#[cfg(feature = "sqlite")]
+pub async fn set_alert_enabled(dev_eui: &EUI64, enabled: bool) -> Result<(), Error> {
+    diesel::sql_query(
+        r#"
+        update device
+        set
+            alert_enabled = ?,
+            alert_state = case when alert_enabled = 0 and ? = 1 then 0 else alert_state end
+        where dev_eui = ?
+        "#,
+    )
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .bind::<diesel::sql_types::Bool, _>(enabled)
+    .bind::<diesel::sql_types::Binary, _>(dev_eui)
+    .execute(&mut get_async_db_conn().await?)
+    .await
+    .map_err(|e| Error::from_diesel(e, dev_eui.to_string()))?;
+    Ok(())
+}
+
+pub async fn set_alert_state(dev_eui: &EUI64, state: i16) -> Result<(), Error> {
+    diesel::update(device::dsl::device.find(dev_eui))
+        .set(device::alert_state.eq(state))
+        .execute(&mut get_async_db_conn().await?)
+        .await
+        .map_err(|e| Error::from_diesel(e, dev_eui.to_string()))?;
+    Ok(())
 }
 
 pub async fn partial_update(dev_eui: EUI64, d: &DeviceChangeset) -> Result<Device, Error> {
@@ -1868,5 +1920,41 @@ pub mod test {
                 }
             }
         }
+    }
+
+    #[tokio::test]
+    async fn test_alert_enabled_and_state() {
+        let _guard = test::prepare().await;
+        let dp = storage::device_profile::test::create_device_profile(None).await;
+        let tenant_id = dp.tenant_id.unwrap();
+        let app = storage::application::test::create_application(Some(tenant_id.into())).await;
+
+        let mut d = Device {
+            name: "test-dev".into(),
+            dev_eui: EUI64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            alert_enabled: true,
+            alert_state: 0,
+            ..Default::default()
+        };
+        d = create(d).await.unwrap();
+        assert_eq!(0, d.alert_state);
+
+        set_alert_state(&d.dev_eui, 2).await.unwrap();
+        let d_get = get(&d.dev_eui).await.unwrap();
+        assert_eq!(2, d_get.alert_state);
+
+        // Disabling must not reset alert_state.
+        set_alert_enabled(&d.dev_eui, false).await.unwrap();
+        let d_get = get(&d.dev_eui).await.unwrap();
+        assert!(!d_get.alert_enabled);
+        assert_eq!(2, d_get.alert_state);
+
+        // Re-enabling must reset alert_state to 0 (unknown).
+        set_alert_enabled(&d.dev_eui, true).await.unwrap();
+        let d_get = get(&d.dev_eui).await.unwrap();
+        assert!(d_get.alert_enabled);
+        assert_eq!(0, d_get.alert_state);
     }
 }

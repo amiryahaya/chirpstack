@@ -68,6 +68,8 @@ diesel::table! {
         device_session -> Nullable<Bytea>,
         app_layer_params -> Jsonb,
         f_cnt_up -> Int8,
+        alert_enabled -> Bool,
+        alert_state -> Int2,
     }
 }
 

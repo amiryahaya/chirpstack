@@ -63,6 +63,8 @@ diesel::table! {
         device_session -> Nullable<Binary>,
         app_layer_params -> Text,
         f_cnt_up -> BigInt,
+        alert_enabled -> Bool,
+        alert_state -> SmallInt,
     }
 }
 
