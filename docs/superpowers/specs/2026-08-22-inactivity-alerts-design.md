@@ -27,7 +27,7 @@ disabled individually per entity.
 
 - Per-entity custom inactivity thresholds (gateway uses its own
   `stats_interval_secs`-derived threshold; device uses its device profile's
-  `uplink_interval` — no override field).
+  `uplink_interval * 1.5` — no override field).
 - Alerting on "never seen" entities (no baseline to transition from).
 - A global/server-wide SMTP relay option (tenant-level SMTP was chosen
   explicitly over global).
@@ -45,12 +45,16 @@ disabled individually per entity.
   raw SQL in `chirpstack/chirpstack/src/storage/gateway.rs`
   (`get_counts_by_state`). `stats_interval_secs` is a per-gateway column,
   default 30s.
-- Devices have no derived active/inactive state today, only a raw
-  `last_seen_at` timestamp on `Device`
-  (`chirpstack/chirpstack/src/storage/device.rs`). `DeviceProfile` already
-  has `uplink_interval` (seconds) whose proto doc explicitly says: "If the
-  uplink interval has expired and no uplink has been received, the device is
-  considered inactive." This is the field to reuse for the device threshold.
+- Devices have no derived active/inactive *state field* today, but
+  `chirpstack/chirpstack/src/storage/device.rs` already has a function,
+  `get_active_inactive()`, that computes tenant-wide active/inactive counts
+  using the threshold `device_profile.uplink_interval * 1.5`. This is the
+  exact existing convention this feature must reuse for its own per-device
+  threshold, so the new alert feature never disagrees with what the
+  dashboard's own active/inactive counts already show. (`DeviceProfile`'s
+  `uplink_interval` proto doc: "If the uplink interval has expired and no
+  uplink has been received, the device is considered inactive" — the `1.5`
+  factor is the codebase's existing interpretation of "expired.")
 - No background/periodic job scheduler exists generically. The closest
   reusable pattern is the downlink scheduler
   (`chirpstack/chirpstack/src/downlink/scheduler.rs`,
@@ -59,6 +63,15 @@ disabled individually per entity.
   `chirpstack/chirpstack/src/cmd/root.rs`.
 - No email-sending capability exists anywhere in ChirpStack today. This
   feature introduces the first one (new `lettre` dependency).
+- A `Monitoring` config struct already exists in
+  `chirpstack/chirpstack/src/config.rs` (part of the top-level
+  `Configuration`). The reaper's scan interval is a new field on this
+  existing struct, not a new top-level config section.
+- `chirpstack/chirpstack/src/storage/fields/string_vec.rs` already defines
+  `StringVec(Vec<Option<String>>)` with `ToSql`/`FromSql` for both Postgres
+  (`Array<Nullable<Text>>`) and SQLite (JSON-encoded `Text`) — exactly the
+  shape needed for a list of alert email addresses. No new custom type is
+  needed.
 - No encryption-at-rest exists for any stored credential. Integration
   credentials (e.g. `AwsSnsConfiguration.secret_access_key`,
   `AzureServiceBusConfiguration.connection_string` in
@@ -78,11 +91,11 @@ disabled individually per entity.
   existing integration-credential convention)
 - `alert_smtp_from_email text not null default ''`
 - `alert_smtp_use_tls boolean not null default true`
-- `alert_email_addresses` — a string list, using the same
-  Postgres/SQLite-portable custom-type pattern ChirpStack already uses for
-  `dev_addr_prefixes` (`fields::DevAddrPrefixVec`). An empty list means
-  alerting is effectively off for the tenant — no separate master-switch
-  column is needed.
+- `alert_email_addresses fields::StringVec` — reusing the existing
+  `StringVec` type (see above), stored as `text[]` (Postgres) /
+  JSON-encoded `text` (SQLite), same as `dev_addr_prefixes`. An empty list
+  means alerting is effectively off for the tenant — no separate
+  master-switch column is needed.
 
 **`gateway`** — new columns:
 
@@ -130,8 +143,9 @@ loop {
 }
 ```
 
-`interval` is configurable via a new `[monitoring]` block in
-`chirpstack.toml` (e.g. `alert_interval`), default 30 minutes.
+`interval` is configurable via a new `alert_interval` field on the
+existing `Monitoring` config struct (`chirpstack.toml`'s `[monitoring]`
+block, which already exists for other settings), default 30 minutes.
 
 **`scan_gateways()`**: query gateways where `alert_enabled = true` and
 `last_seen_at is not null` (never-seen gateways are skipped entirely, per
@@ -146,10 +160,12 @@ scope). For each: `is_inactive = now - last_seen_at > stats_interval_secs *
   `alert_event` row, update `alert_state`.
 - Else: no-op.
 
-**`scan_devices()`**: same shape, joined with the device's `DeviceProfile`
-for `uplink_interval` as the threshold instead of the gateway formula.
-Devices whose profile has `uplink_interval == 0` are skipped entirely (0
-means "no expected interval configured" — not "always inactive").
+**`scan_devices()`**: same shape, joined with the device's `DeviceProfile`;
+threshold is `uplink_interval * 1.5` (reusing the exact formula from the
+existing `device::get_active_inactive()`, see above) instead of the
+gateway formula. Devices whose profile has `uplink_interval == 0` are
+skipped entirely (0 means "no expected interval configured" — not "always
+inactive").
 
 Both scans are done as a small number of batched SQL queries (not a
 per-row round trip) to keep this cheap at scale.
