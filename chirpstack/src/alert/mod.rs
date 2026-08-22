@@ -44,29 +44,53 @@ pub async fn scan_gateways() -> anyhow::Result<()> {
         match transition {
             Transition::None => continue,
             Transition::RecordOnly => {
-                gateway::set_alert_state(&c.gateway_id, new_state.to_i16()).await?;
+                if let Err(e) = gateway::set_alert_state(&c.gateway_id, new_state.to_i16()).await {
+                    error!(gateway_id = %c.gateway_id, error = %e, "Recording inactivity alert state for gateway failed");
+                }
             }
             Transition::WentInactive | Transition::Recovered => {
                 let went_inactive = matches!(transition, Transition::WentInactive);
-                if let Ok(t) = tenant::get(&c.tenant_id.into()).await {
-                    let email_sent = !t.alert_email_addresses.is_empty();
-                    if email_sent {
-                        email::send_transition_email(&t, EntityKind::Gateway, &c.name, went_inactive)
+                match tenant::get(&c.tenant_id.into()).await {
+                    Ok(t) => {
+                        let email_sent = !t.alert_email_addresses.is_empty();
+                        if email_sent {
+                            email::send_transition_email(
+                                &t,
+                                EntityKind::Gateway,
+                                &c.name,
+                                went_inactive,
+                            )
                             .await;
+                        }
+                        if let Err(e) = alert_event::insert(alert_event::AlertEvent {
+                            id: fields::Uuid::from(Uuid::new_v4()),
+                            entity_type: alert_event::ENTITY_TYPE_GATEWAY,
+                            entity_id: c.gateway_id,
+                            tenant_id: c.tenant_id,
+                            previous_state: previous.to_i16(),
+                            new_state: new_state.to_i16(),
+                            created_at: chrono::Utc::now(),
+                            email_sent,
+                        })
+                        .await
+                        {
+                            error!(gateway_id = %c.gateway_id, error = %e, "Inserting inactivity alert event for gateway failed");
+                            continue;
+                        }
+                        if let Err(e) =
+                            gateway::set_alert_state(&c.gateway_id, new_state.to_i16()).await
+                        {
+                            error!(gateway_id = %c.gateway_id, error = %e, "Recording inactivity alert state for gateway failed");
+                        }
                     }
-                    alert_event::insert(alert_event::AlertEvent {
-                        id: fields::Uuid::from(Uuid::new_v4()),
-                        entity_type: alert_event::ENTITY_TYPE_GATEWAY,
-                        entity_id: c.gateway_id,
-                        tenant_id: c.tenant_id,
-                        previous_state: previous.to_i16(),
-                        new_state: new_state.to_i16(),
-                        created_at: chrono::Utc::now(),
-                        email_sent,
-                    })
-                    .await?;
+                    Err(e) => {
+                        // Do not advance alert_state: without the tenant we can neither send the
+                        // transition email nor write the alert_event audit row, so leaving the
+                        // stored state behind lets this transition be retried next scan cycle
+                        // instead of being silently and permanently lost.
+                        error!(gateway_id = %c.gateway_id, tenant_id = %c.tenant_id, error = %e, "Looking up tenant for gateway inactivity alert failed");
+                    }
                 }
-                gateway::set_alert_state(&c.gateway_id, new_state.to_i16()).await?;
             }
         }
     }
@@ -84,29 +108,53 @@ pub async fn scan_devices() -> anyhow::Result<()> {
         match transition {
             Transition::None => continue,
             Transition::RecordOnly => {
-                device::set_alert_state(&c.dev_eui, new_state.to_i16()).await?;
+                if let Err(e) = device::set_alert_state(&c.dev_eui, new_state.to_i16()).await {
+                    error!(dev_eui = %c.dev_eui, error = %e, "Recording inactivity alert state for device failed");
+                }
             }
             Transition::WentInactive | Transition::Recovered => {
                 let went_inactive = matches!(transition, Transition::WentInactive);
-                if let Ok(t) = tenant::get(&c.tenant_id.into()).await {
-                    let email_sent = !t.alert_email_addresses.is_empty();
-                    if email_sent {
-                        email::send_transition_email(&t, EntityKind::Device, &c.name, went_inactive)
+                match tenant::get(&c.tenant_id.into()).await {
+                    Ok(t) => {
+                        let email_sent = !t.alert_email_addresses.is_empty();
+                        if email_sent {
+                            email::send_transition_email(
+                                &t,
+                                EntityKind::Device,
+                                &c.name,
+                                went_inactive,
+                            )
                             .await;
+                        }
+                        if let Err(e) = alert_event::insert(alert_event::AlertEvent {
+                            id: fields::Uuid::from(Uuid::new_v4()),
+                            entity_type: alert_event::ENTITY_TYPE_DEVICE,
+                            entity_id: c.dev_eui,
+                            tenant_id: c.tenant_id,
+                            previous_state: previous.to_i16(),
+                            new_state: new_state.to_i16(),
+                            created_at: chrono::Utc::now(),
+                            email_sent,
+                        })
+                        .await
+                        {
+                            error!(dev_eui = %c.dev_eui, error = %e, "Inserting inactivity alert event for device failed");
+                            continue;
+                        }
+                        if let Err(e) =
+                            device::set_alert_state(&c.dev_eui, new_state.to_i16()).await
+                        {
+                            error!(dev_eui = %c.dev_eui, error = %e, "Recording inactivity alert state for device failed");
+                        }
                     }
-                    alert_event::insert(alert_event::AlertEvent {
-                        id: fields::Uuid::from(Uuid::new_v4()),
-                        entity_type: alert_event::ENTITY_TYPE_DEVICE,
-                        entity_id: c.dev_eui,
-                        tenant_id: c.tenant_id,
-                        previous_state: previous.to_i16(),
-                        new_state: new_state.to_i16(),
-                        created_at: chrono::Utc::now(),
-                        email_sent,
-                    })
-                    .await?;
+                    Err(e) => {
+                        // Do not advance alert_state: without the tenant we can neither send the
+                        // transition email nor write the alert_event audit row, so leaving the
+                        // stored state behind lets this transition be retried next scan cycle
+                        // instead of being silently and permanently lost.
+                        error!(dev_eui = %c.dev_eui, tenant_id = %c.tenant_id, error = %e, "Looking up tenant for device inactivity alert failed");
+                    }
                 }
-                device::set_alert_state(&c.dev_eui, new_state.to_i16()).await?;
             }
         }
     }
