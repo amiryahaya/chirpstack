@@ -369,6 +369,13 @@ diesel::table! {
         private_gateways_down -> Bool,
         tags -> Text,
         dev_addr_prefixes -> Text,
+        alert_smtp_host -> Text,
+        alert_smtp_port -> Integer,
+        alert_smtp_username -> Text,
+        alert_smtp_password -> Text,
+        alert_smtp_from_email -> Text,
+        alert_smtp_use_tls -> Bool,
+        alert_email_addresses -> Text,
     }
 }
 

@@ -404,6 +404,13 @@ diesel::table! {
         private_gateways_down -> Bool,
         tags -> Jsonb,
         dev_addr_prefixes -> Array<Nullable<Text>>,
+        alert_smtp_host -> Text,
+        alert_smtp_port -> Int4,
+        alert_smtp_username -> Text,
+        alert_smtp_password -> Text,
+        alert_smtp_from_email -> Text,
+        alert_smtp_use_tls -> Bool,
+        alert_email_addresses -> Array<Nullable<Text>>,
     }
 }
 
