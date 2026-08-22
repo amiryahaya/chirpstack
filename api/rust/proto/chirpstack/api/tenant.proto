@@ -83,6 +83,14 @@ service TenantService {
   rpc ListUsers(ListTenantUsersRequest) returns (ListTenantUsersResponse) {
     option (google.api.http) = {get: "/api/tenants/{tenant_id}/users"};
   }
+
+  // Send a test email using the tenant's currently saved alert SMTP settings.
+  rpc TestAlertEmail(TestAlertEmailRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/api/tenants/{tenant_id}/alerts/test"
+      body: "*"
+    };
+  }
 }
 
 message Tenant {
@@ -133,6 +141,22 @@ message Tenant {
   //
   // If left blank, ChirpStack will use the global DevAddr pool.
   repeated string dev_addr_prefixes = 10;
+
+  // SMTP host used for sending inactivity alert emails.
+  string alert_smtp_host = 11;
+  // SMTP port.
+  uint32 alert_smtp_port = 12;
+  // SMTP username.
+  string alert_smtp_username = 13;
+  // SMTP password.
+  string alert_smtp_password = 14;
+  // From email address used for alert emails.
+  string alert_smtp_from_email = 15;
+  // Use TLS when connecting to the SMTP relay.
+  bool alert_smtp_use_tls = 16;
+  // Email addresses that receive gateway / device inactivity alerts.
+  // An empty list means alerting is effectively disabled for this tenant.
+  repeated string alert_email_addresses = 17;
 }
 
 message TenantListItem {
@@ -338,6 +362,11 @@ message DeleteTenantUserRequest {
 
   // User ID (UUID).
   string user_id = 2;
+}
+
+message TestAlertEmailRequest {
+  // Tenant ID (UUID).
+  string tenant_id = 1;
 }
 
 message ListTenantUsersRequest {

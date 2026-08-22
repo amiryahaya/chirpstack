@@ -188,6 +188,10 @@ message Device {
   // In this case the Relay needs to know the JoinEUI + DevEUI combinations
   // of the devices for which it needs to forward uplinks.
   string join_eui = 10;
+
+  // Enable inactivity alert emails for this device.
+  // When not set by the client, defaults to true.
+  optional bool alert_enabled = 11;
 }
 
 message DeviceStatus {
