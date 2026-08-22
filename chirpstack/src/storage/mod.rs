@@ -13,6 +13,7 @@ use tracing::{error, info};
 
 use crate::config;
 
+pub mod alert_event;
 pub mod api_key;
 pub mod application;
 pub mod device;
