@@ -2,8 +2,9 @@ import { Card, Form, Input, InputNumber, Switch, Row, Col, Button, Tabs, Space }
 import type { TabsProps } from "antd/lib";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 
-import { Tenant } from "@chirpstack/chirpstack-api-grpc-web/api/tenant_pb";
+import { Tenant, TestAlertEmailRequest } from "@chirpstack/chirpstack-api-grpc-web/api/tenant_pb";
 
+import TenantStore from "../../stores/TenantStore";
 import { onFinishFailed } from "../helpers";
 
 interface IProps {
@@ -35,6 +36,15 @@ function TenantForm(props: IProps) {
     for (const prefix of v.devAddrPrefixesList) {
       tenant.addDevAddrPrefixes(prefix);
     }
+
+    // Alerts
+    tenant.setAlertSmtpHost(v.alertSmtpHost || "");
+    tenant.setAlertSmtpPort(v.alertSmtpPort || 587);
+    tenant.setAlertSmtpUsername(v.alertSmtpUsername || "");
+    tenant.setAlertSmtpPassword(v.alertSmtpPassword || "");
+    tenant.setAlertSmtpFromEmail(v.alertSmtpFromEmail || "");
+    tenant.setAlertSmtpUseTls(v.alertSmtpUseTls || false);
+    tenant.setAlertEmailAddressesList(v.alertEmailAddressesList || []);
 
     props.onFinish(tenant);
   };
@@ -209,6 +219,80 @@ function TenantForm(props: IProps) {
             )}
           </Form.List>
         </Space>
+      ),
+    },
+    {
+      key: "alerts",
+      label: "Alerts",
+      children: (
+        <>
+          <Form.Item label="SMTP host" name="alertSmtpHost">
+            <Input disabled={props.disabled} />
+          </Form.Item>
+          <Form.Item label="SMTP port" name="alertSmtpPort">
+            <InputNumber disabled={props.disabled} min={1} max={65535} style={{ width: "100%" }} />
+          </Form.Item>
+          <Form.Item label="SMTP username" name="alertSmtpUsername">
+            <Input disabled={props.disabled} />
+          </Form.Item>
+          <Form.Item label="SMTP password" name="alertSmtpPassword">
+            <Input.Password disabled={props.disabled} />
+          </Form.Item>
+          <Form.Item label="From email address" name="alertSmtpFromEmail">
+            <Input disabled={props.disabled} />
+          </Form.Item>
+          <Form.Item
+            label="Use TLS"
+            name="alertSmtpUseTls"
+            tooltip="Use a TLS connection when sending alert emails through this SMTP relay."
+            valuePropName="checked"
+          >
+            <Switch disabled={props.disabled} />
+          </Form.Item>
+
+          <Form.List name="alertEmailAddressesList">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(field => (
+                  <Row gutter={24} key={field.key}>
+                    <Col span={22}>
+                      <Form.Item {...field}>
+                        <Input placeholder="email address" disabled={props.disabled} />
+                      </Form.Item>
+                    </Col>
+                    {!props.disabled && (
+                      <Col span={2}>
+                        <MinusCircleOutlined onClick={() => remove(field.name)} />
+                      </Col>
+                    )}
+                  </Row>
+                ))}
+                {!props.disabled && (
+                  <Form.Item>
+                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                      Add alert email address
+                    </Button>
+                  </Form.Item>
+                )}
+              </>
+            )}
+          </Form.List>
+
+          <Form.Item>
+            <Button
+              onClick={() => {
+                if (!props.initialValues.getId()) {
+                  return;
+                }
+                const req = new TestAlertEmailRequest();
+                req.setTenantId(props.initialValues.getId());
+                TenantStore.testAlertEmail(req, () => {});
+              }}
+            >
+              Send test email
+            </Button>
+          </Form.Item>
+        </>
       ),
     },
   ];

@@ -16,6 +16,7 @@ import type {
   DeleteTenantUserRequest,
   ListTenantUsersRequest,
   ListTenantUsersResponse,
+  TestAlertEmailRequest,
 } from "@chirpstack/chirpstack-api-grpc-web/api/tenant_pb";
 import { GetTenantRequest } from "@chirpstack/chirpstack-api-grpc-web/api/tenant_pb";
 
@@ -172,6 +173,18 @@ class TenantStore extends EventEmitter {
       }
 
       callbackFunc(resp);
+    });
+  };
+
+  testAlertEmail = (req: TestAlertEmailRequest, callbackFunc: () => void) => {
+    this.client.testAlertEmail(req, SessionStore.getMetadata(), err => {
+      if (err !== null) {
+        HandleError(err);
+        return;
+      }
+
+      notification.success({ message: "Test email sent", duration: 3 });
+      callbackFunc();
     });
   };
 }
