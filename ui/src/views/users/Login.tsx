@@ -11,20 +11,13 @@ import SessionStore from "../../stores/SessionStore";
 import InternalStore from "../../stores/InternalStore";
 import { useTitle } from "../helpers";
 
-const layout = {
-  labelCol: {
-    span: 8,
-  },
-  wrapperCol: {
-    span: 16,
-  },
-};
-
-const tailLayout = {
-  wrapperCol: {
-    offset: 8,
-    span: 16,
-  },
+// Responsive: nearly full-width with small side margins on phones,
+// narrowing down to the original fixed centered card from md upward.
+const cardCol = {
+  xs: { span: 22, offset: 1 },
+  sm: { span: 16, offset: 4 },
+  md: { span: 12, offset: 6 },
+  lg: { span: 8, offset: 8 },
 };
 
 interface LoginFormValues {
@@ -45,7 +38,7 @@ interface OAuth2LoginProps {
 function OidcLogin({ loginUrl, loginLabel }: OidcLoginProps) {
   return (
     <Row style={{ marginTop: "200px" }}>
-      <Col span={8} offset={8}>
+      <Col {...cardCol}>
         <Card title="ChirpStack login">
           <a href={loginUrl}>
             <Button type="primary">{loginLabel}</Button>
@@ -59,7 +52,7 @@ function OidcLogin({ loginUrl, loginLabel }: OidcLoginProps) {
 function OAuth2Login({ loginUrl, loginLabel }: OAuth2LoginProps) {
   return (
     <Row style={{ marginTop: "200px" }}>
-      <Col span={8} offset={8}>
+      <Col {...cardCol}>
         <Card title="ChirpStack login">
           <a href={loginUrl}>
             <Button type="primary">{loginLabel}</Button>
@@ -81,9 +74,9 @@ function LoginForm() {
 
   return (
     <Row style={{ marginTop: "200px" }}>
-      <Col span={8} offset={8}>
+      <Col {...cardCol}>
         <Card title="ChirpStack login">
-          <Form {...layout} onFinish={onFinish}>
+          <Form layout="vertical" onFinish={onFinish}>
             <Form.Item
               label="Username / email"
               name="email"
@@ -110,7 +103,7 @@ function LoginForm() {
               <Input.Password />
             </Form.Item>
 
-            <Form.Item {...tailLayout}>
+            <Form.Item>
               <Button type="primary" htmlType="submit">
                 Submit
               </Button>

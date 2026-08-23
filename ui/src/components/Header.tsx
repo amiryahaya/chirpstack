@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { Button, Dropdown, Input, AutoComplete } from "antd";
-import { UserOutlined, DownOutlined, QuestionOutlined } from "@ant-design/icons";
+import { UserOutlined, DownOutlined, QuestionOutlined, MenuOutlined } from "@ant-design/icons";
 
 import type { User } from "@chirpstack/chirpstack-api-grpc-web/api/user_pb";
 import type { SettingsResponse, GlobalSearchResponse } from "@chirpstack/chirpstack-api-grpc-web/api/internal_pb";
@@ -22,7 +22,17 @@ const renderItem = (title: string, url: string) => ({
   label: <Link to={url}>{title}</Link>,
 });
 
-function Header({ user }: { user: User }) {
+interface IProps {
+  user: User;
+  // Only rendered when the nav menu is a mobile drawer (viewport below the
+  // responsive breakpoint) — desktop never passes these, so the button
+  // doesn't show there. The drawer's own close button/backdrop handle
+  // closing, so this button only ever needs to open it.
+  showSiderToggle?: boolean;
+  onSiderOpen?: () => void;
+}
+
+function Header({ user, showSiderToggle, onSiderOpen }: IProps) {
   const navigate = useNavigate();
 
   const [settings, setSettings] = useState<SettingsResponse | undefined>(undefined);
@@ -153,6 +163,9 @@ function Header({ user }: { user: User }) {
 
   return (
     <div>
+      {showSiderToggle && (
+        <Button className="sider-toggle" icon={<MenuOutlined />} aria-label="Open menu" onClick={onSiderOpen} />
+      )}
       <img className="logo" alt="ChirpStack" src="/logo.png" />
       <div className="actions">
         <div className="search">
@@ -162,7 +175,7 @@ function Header({ user }: { user: User }) {
             options={options}
             onSearch={onSearch}
             onSelect={onSelect}
-            style={{ width: 500, lineHeight: "32px" }}
+            style={{ width: "100%", maxWidth: 500, lineHeight: "32px" }}
           >
             <Input.Search size="medium" placeholder="Search..." />
           </AutoComplete>
