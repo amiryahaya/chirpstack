@@ -41,7 +41,7 @@ function RelayGatewayForm(props: IProps) {
         <Input.TextArea disabled={props.disabled} />
       </Form.Item>
       <Row gutter={24}>
-        <Col span={12}>
+        <Col xs={24} sm={12}>
           <RelayIdInput
             label="Relay ID (4 bytes)"
             name="relayId"
@@ -50,7 +50,7 @@ function RelayGatewayForm(props: IProps) {
             required
           />
         </Col>
-        <Col span={12}>
+        <Col xs={24} sm={12}>
           <Form.Item
             label="Stats interval (secs)"
             tooltip="The expected interval in seconds in which the relay gateway sends its statistics"

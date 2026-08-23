@@ -160,7 +160,7 @@ function FuotaDeploymentForm(props: IProps) {
             <Input disabled={props.disabled} />
           </Form.Item>
           <Row gutter={24}>
-            <Col span={16}>
+            <Col xs={24} sm={16}>
               <DeviceProfileSelect
                 label="Device profile"
                 name="deviceProfileId"
@@ -170,7 +170,7 @@ function FuotaDeploymentForm(props: IProps) {
                 disabled={props.disabled || props.update}
               />
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Unicast retry count (max)"
                 name="unicastMaxRetryCount"
@@ -182,7 +182,7 @@ function FuotaDeploymentForm(props: IProps) {
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Multicast group-type"
                 name="multicastGroupType"
@@ -199,7 +199,7 @@ function FuotaDeploymentForm(props: IProps) {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item label="Class-B ping-slot periodicity" name="multicastClassBPingSlotPeriodicity">
                 <Select
                   disabled={!isMulticastClassB || props.disabled}
@@ -216,7 +216,7 @@ function FuotaDeploymentForm(props: IProps) {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Class-C scheduling type"
                 name="multicastClassCSchedulingType"
@@ -233,7 +233,7 @@ function FuotaDeploymentForm(props: IProps) {
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Multicast data-rate"
                 name="multicastDr"
@@ -243,7 +243,7 @@ function FuotaDeploymentForm(props: IProps) {
                 <InputNumber min={0} max={15} disabled={props.disabled} style={{ width: "100%" }} prefix="DR" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Multicast frequency (Hz)"
                 name="multicastFrequency"
@@ -253,14 +253,14 @@ function FuotaDeploymentForm(props: IProps) {
                 <InputNumber min={0} disabled={props.disabled} style={{ width: "100%" }} suffix="Hz" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item label="Fragmentation redundancy (%)" name="fragmentationRedundancyPercentage">
                 <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} disabled={props.disabled} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Fragmentation status request"
                 name="requestFragmentationSessionStatus"
@@ -281,7 +281,7 @@ function FuotaDeploymentForm(props: IProps) {
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={6}>
+            <Col xs={24} sm={6}>
               <Form.Item
                 label="Calculate multicast-timeout"
                 name="calculateMulticastTimeout"
@@ -290,7 +290,7 @@ function FuotaDeploymentForm(props: IProps) {
                 <Switch onChange={(v: boolean) => setCalculateMulticastTimeout(v)} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={6}>
               <Form.Item label="Multicast timeout" name="multicastTimeout">
                 {isMulticastClassB && (
                   <Select
@@ -340,7 +340,7 @@ function FuotaDeploymentForm(props: IProps) {
                 )}
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={6}>
               <Form.Item
                 label="Calculate fragment size"
                 name="calculateFragmentationFragmentSize"
@@ -349,7 +349,7 @@ function FuotaDeploymentForm(props: IProps) {
                 <Switch onChange={(v: boolean) => setCalculateFragmentationFragmentSize(v)} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={6}>
               <Form.Item label="Fragment size" name="fragmentationFragmentSize">
                 <InputNumber
                   min={0}
@@ -386,7 +386,7 @@ function FuotaDeploymentForm(props: IProps) {
             <>
               {fields.map(({ key, name, ...restField }) => (
                 <Row gutter={24} key={key}>
-                  <Col span={6}>
+                  <Col xs={24} sm={6}>
                     <Form.Item
                       {...restField}
                       name={[name, 0]}
@@ -395,7 +395,7 @@ function FuotaDeploymentForm(props: IProps) {
                       <Input placeholder="Key" />
                     </Form.Item>
                   </Col>
-                  <Col span={16}>
+                  <Col xs={20} sm={16}>
                     <Form.Item
                       {...restField}
                       name={[name, 1]}
@@ -404,7 +404,7 @@ function FuotaDeploymentForm(props: IProps) {
                       <Input placeholder="Value" />
                     </Form.Item>
                   </Col>
-                  <Col span={2}>
+                  <Col xs={4} sm={2}>
                     <MinusCircleOutlined onClick={() => remove(name)} />
                   </Col>
                 </Row>

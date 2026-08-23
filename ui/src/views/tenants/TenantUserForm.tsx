@@ -129,7 +129,7 @@ function TenantUserForm(props: IProps) {
           </Form.Item>
           {!isAdmin && (
             <Row>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="User is gateway admin"
                   tooltip="A gateway admin user is able to add and modify gateways part of the tenant. Gateways are readable to all users."
@@ -139,7 +139,7 @@ function TenantUserForm(props: IProps) {
                   <Switch disabled={props.disabled} />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="User is device admin"
                   tooltip="A device admin user is able to read, add and modify device-profiles, applications and everything under an application. Device-profiles are readable by all users. Applications and eveything under it are not readable unless explicity given access to non device-admins."
@@ -171,7 +171,7 @@ function TenantUserForm(props: IProps) {
               <>
                 {fields.map(({ key, name, ...restField }) => (
                   <Row gutter={24} key={key}>
-                    <Col span={22}>
+                    <Col xs={20} sm={22}>
                       <Form.Item
                         name={[name, "deviceProfileId"]}
                         {...restField}
@@ -185,7 +185,7 @@ function TenantUserForm(props: IProps) {
                         <Select options={deviceProfileOptions} />
                       </Form.Item>
                     </Col>
-                    <Col span={2}>
+                    <Col xs={4} sm={2}>
                       <MinusCircleOutlined onClick={() => remove(name)} />
                     </Col>
                   </Row>
@@ -219,7 +219,7 @@ function TenantUserForm(props: IProps) {
               <>
                 {fields.map(({ key, name, ...restField }) => (
                   <Row gutter={24} key={key}>
-                    <Col span={16}>
+                    <Col xs={24} sm={16}>
                       <Form.Item
                         name={[name, "applicationId"]}
                         {...restField}
@@ -233,12 +233,12 @@ function TenantUserForm(props: IProps) {
                         <Select options={applicationOptions} />
                       </Form.Item>
                     </Col>
-                    <Col span={6}>
+                    <Col xs={16} sm={6}>
                       <Form.Item layout="horizontal" name={[name, "isReadOnly"]} label="Read-only" {...restField}>
                         <Switch />
                       </Form.Item>
                     </Col>
-                    <Col span={2}>
+                    <Col xs={4} sm={2}>
                       <MinusCircleOutlined onClick={() => remove(name)} />
                     </Col>
                   </Row>

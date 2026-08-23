@@ -90,12 +90,12 @@ function MulticastGroupForm(props: IProps) {
       <AesKeyInput label="Multicast network session key" name="mcNwkSKey" disabled={props.disabled} required />
       <AesKeyInput label="Multicast application session key" name="mcAppSKey" disabled={props.disabled} required />
       <Row gutter={24}>
-        <Col span={8}>
+        <Col xs={24} sm={8}>
           <Form.Item label="Region" name="region" rules={[{ required: true, message: "Please select a region!" }]}>
             <Select disabled={props.disabled} options={regConfs} />
           </Form.Item>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Form.Item
             label="Data-rate"
             name="dr"
@@ -105,7 +105,7 @@ function MulticastGroupForm(props: IProps) {
             <InputNumber min={0} max={15} disabled={props.disabled} style={{ width: "100%" }} />
           </Form.Item>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Form.Item
             label="Frame-counter"
             name="fCnt"
@@ -114,7 +114,7 @@ function MulticastGroupForm(props: IProps) {
             <InputNumber min={0} disabled={props.disabled} style={{ width: "100%" }} />
           </Form.Item>
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={8}>
           <Form.Item
             label="Frequency (Hz)"
             name="frequency"
@@ -126,7 +126,7 @@ function MulticastGroupForm(props: IProps) {
         </Col>
       </Row>
       <Row gutter={24}>
-        <Col span={8}>
+        <Col xs={24} sm={8}>
           <Form.Item
             label="Group type"
             name="groupType"
@@ -143,7 +143,7 @@ function MulticastGroupForm(props: IProps) {
             />
           </Form.Item>
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={8}>
           <Form.Item label="Class-B ping-slot periodicity" name="classBPingSlotPeriodicity">
             <Select
               disabled={!selectPingSlotPeriod || props.disabled}
@@ -160,7 +160,7 @@ function MulticastGroupForm(props: IProps) {
             />
           </Form.Item>
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={8}>
           <Form.Item
             label="Class-C scheduling type"
             name="classCSchedulingType"
