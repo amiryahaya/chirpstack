@@ -120,7 +120,7 @@ function DeviceDashboard(props: IProps) {
       const items = keys.slice(i, i + 3).map(k => {
         const m = states.get(k)!;
         return (
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
             <Card>
               <Statistic title={m.getName()} value={m.getValue()} />
             </Card>
@@ -141,7 +141,7 @@ function DeviceDashboard(props: IProps) {
       const items = keys.slice(i, i + 3).map(k => {
         const m = metrics.get(k)!;
         return (
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
             <MetricChart metric={m} aggregation={metricsAggregation} zeroToNull />
           </Col>
         );
@@ -183,18 +183,18 @@ function DeviceDashboard(props: IProps) {
       children: (
         <Space orientation="vertical" style={{ width: "100%" }} size="large">
           <Row gutter={24}>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <MetricChart metric={deviceLinkMetrics.getRxPackets()!} aggregation={metricsAggregation} />
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <MetricChart metric={deviceLinkMetrics.getGwRssi()!} aggregation={metricsAggregation} zeroToNull />
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <MetricChart metric={deviceLinkMetrics.getGwSnr()!} aggregation={metricsAggregation} zeroToNull />
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <MetricHeatmap
                 metric={deviceLinkMetrics.getRxPacketsPerFreq()!}
                 aggregation={metricsAggregation}
@@ -202,7 +202,7 @@ function DeviceDashboard(props: IProps) {
                 toColor="rgb(33, 150, 243, 1)"
               />
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <MetricHeatmap
                 metric={deviceLinkMetrics.getRxPacketsPerDr()!}
                 aggregation={metricsAggregation}
@@ -210,7 +210,7 @@ function DeviceDashboard(props: IProps) {
                 toColor="rgb(33, 150, 243, 1)"
               />
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <MetricBar metric={deviceLinkMetrics.getErrors()!} aggregation={metricsAggregation} />
             </Col>
           </Row>

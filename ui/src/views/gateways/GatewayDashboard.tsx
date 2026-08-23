@@ -116,22 +116,22 @@ function GatewayDashboard(props: IProps) {
       {gatewayDutyCycleMetrics.getMaxLoadPercentage()!.getDatasetsList().length !== 0 &&
         gatewayDutyCycleMetrics.getWindowPercentage()!.getDatasetsList().length !== 0 && (
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <MetricChart metric={gatewayDutyCycleMetrics.getWindowPercentage()!} aggregation={Aggregation.MINUTE} />
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <MetricChart metric={gatewayDutyCycleMetrics.getMaxLoadPercentage()!} aggregation={Aggregation.MINUTE} />
             </Col>
           </Row>
         )}
       <Row gutter={24}>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <MetricChart metric={gatewayMetrics.getRxPackets()!} aggregation={metricsAggregation} />
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <MetricChart metric={gatewayMetrics.getTxPackets()!} aggregation={metricsAggregation} />
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <MetricHeatmap
             metric={gatewayMetrics.getRxPacketsPerFreq()!}
             aggregation={metricsAggregation}
@@ -141,7 +141,7 @@ function GatewayDashboard(props: IProps) {
         </Col>
       </Row>
       <Row gutter={24}>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <MetricHeatmap
             metric={gatewayMetrics.getTxPacketsPerFreq()!}
             aggregation={metricsAggregation}
@@ -149,7 +149,7 @@ function GatewayDashboard(props: IProps) {
             toColor="rgb(33, 150, 243, 1)"
           />
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <MetricHeatmap
             metric={gatewayMetrics.getRxPacketsPerDr()!}
             aggregation={metricsAggregation}
@@ -157,7 +157,7 @@ function GatewayDashboard(props: IProps) {
             toColor="rgb(33, 150, 243, 1)"
           />
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <MetricHeatmap
             metric={gatewayMetrics.getTxPacketsPerDr()!}
             aggregation={metricsAggregation}
@@ -167,7 +167,7 @@ function GatewayDashboard(props: IProps) {
         </Col>
       </Row>
       <Row gutter={24}>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <MetricBar metric={gatewayMetrics.getTxPacketsPerStatus()!} aggregation={metricsAggregation} />
         </Col>
       </Row>

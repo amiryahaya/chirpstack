@@ -272,17 +272,17 @@ function TenantDashboard({ tenant }: { tenant: Tenant }) {
   return (
     <Space orientation="vertical" style={{ width: "100%" }} size="large">
       <Row gutter={24}>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <Card title="Active devices">
             <DevicesActiveInactive summary={devicesSummary} />
           </Card>
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <Card title="Active gateways">
             <GatewaysActiveInactive summary={gatewaysSummary} />
           </Card>
         </Col>
-        <Col span={8}>
+        <Col xs={24} sm={12} md={8}>
           <Card title="Device data-rate usage">
             <DevicesDataRates summary={devicesSummary} />
           </Card>
