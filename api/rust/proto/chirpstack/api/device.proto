@@ -305,7 +305,8 @@ message ListDevicesRequest {
   // Offset in the result-set (for pagination).
   uint32 offset = 2;
 
-  // If set, the given string will be used to search on name (optional).
+  // If set, the given string will be used to search on (optional).
+  // The field searched on is defined by search_field (default: name).
   string search = 3;
 
   // Application ID (UUID) to filter devices on.
@@ -332,6 +333,14 @@ message ListDevicesRequest {
 
   // Device-profile ID (UUID) to filter devices on.
   string device_profile_id = 9;
+
+  enum SearchField {
+    SEARCH_FIELD_NAME = 0;
+    SEARCH_FIELD_DEV_EUI = 1;
+  }
+
+  // Defines the field that search is performed on (default: SEARCH_FIELD_NAME) (optional).
+  SearchField search_field = 10;
 }
 
 message ListDevicesResponse {

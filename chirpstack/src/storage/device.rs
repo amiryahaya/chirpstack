@@ -20,6 +20,20 @@ use super::{error::Error, fields, get_async_db_conn};
 use crate::api::helpers::FromProto;
 use crate::config;
 
+// Hex-encodes a binary column so it can be substring-matched with (i)like, mirroring the
+// encode(..., 'hex') / hex(...) calls search.rs already uses for the same purpose.
+#[cfg(feature = "postgres")]
+diesel::define_sql_function! {
+    #[sql_name = "encode"]
+    fn pg_encode_hex(bytes: diesel::sql_types::Binary, format: diesel::sql_types::Text) -> diesel::sql_types::Text;
+}
+
+#[cfg(feature = "sqlite")]
+diesel::define_sql_function! {
+    #[sql_name = "hex"]
+    fn sqlite_hex(bytes: diesel::sql_types::Binary) -> diesel::sql_types::Text;
+}
+
 pub enum ValidationStatus {
     Ok(u32, Device),
     Retransmission(u32, Device),
@@ -230,6 +244,7 @@ pub struct Filters {
     pub multicast_group_id: Option<Uuid>,
     pub device_profile_id: Option<Uuid>,
     pub search: Option<String>,
+    pub search_field: SearchField,
     pub tags: HashMap<String, String>,
 }
 
@@ -240,6 +255,13 @@ pub enum OrderBy {
     DevEui,
     LastSeenAt,
     DeviceProfileName,
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum SearchField {
+    #[default]
+    Name,
+    DevEui,
 }
 
 #[derive(QueryableByName, PartialEq, Eq, Debug)]
@@ -734,13 +756,29 @@ pub async fn get_count(filters: &Filters) -> Result<i64, Error> {
     }
 
     if let Some(search) = &filters.search {
-        #[cfg(feature = "postgres")]
-        {
-            q = q.filter(device::dsl::name.ilike(format!("%{}%", search)));
-        }
-        #[cfg(feature = "sqlite")]
-        {
-            q = q.filter(device::dsl::name.like(format!("%{}%", search)));
+        match filters.search_field {
+            SearchField::Name => {
+                #[cfg(feature = "postgres")]
+                {
+                    q = q.filter(device::dsl::name.ilike(format!("%{}%", search)));
+                }
+                #[cfg(feature = "sqlite")]
+                {
+                    q = q.filter(device::dsl::name.like(format!("%{}%", search)));
+                }
+            }
+            SearchField::DevEui => {
+                #[cfg(feature = "postgres")]
+                {
+                    q = q.filter(
+                        pg_encode_hex(device::dsl::dev_eui, "hex").ilike(format!("%{}%", search)),
+                    );
+                }
+                #[cfg(feature = "sqlite")]
+                {
+                    q = q.filter(sqlite_hex(device::dsl::dev_eui).like(format!("%{}%", search)));
+                }
+            }
         }
     }
 
@@ -842,13 +880,29 @@ pub async fn list(
     }
 
     if let Some(search) = &filters.search {
-        #[cfg(feature = "postgres")]
-        {
-            q = q.filter(device::dsl::name.ilike(format!("%{}%", search)));
-        }
-        #[cfg(feature = "sqlite")]
-        {
-            q = q.filter(device::dsl::name.like(format!("%{}%", search)));
+        match filters.search_field {
+            SearchField::Name => {
+                #[cfg(feature = "postgres")]
+                {
+                    q = q.filter(device::dsl::name.ilike(format!("%{}%", search)));
+                }
+                #[cfg(feature = "sqlite")]
+                {
+                    q = q.filter(device::dsl::name.like(format!("%{}%", search)));
+                }
+            }
+            SearchField::DevEui => {
+                #[cfg(feature = "postgres")]
+                {
+                    q = q.filter(
+                        pg_encode_hex(device::dsl::dev_eui, "hex").ilike(format!("%{}%", search)),
+                    );
+                }
+                #[cfg(feature = "sqlite")]
+                {
+                    q = q.filter(sqlite_hex(device::dsl::dev_eui).like(format!("%{}%", search)));
+                }
+            }
         }
     }
 
@@ -1364,6 +1418,38 @@ pub mod test {
                     application_id: None,
                     multicast_group_id: None,
                     search: Some("tes".into()),
+                    ..Default::default()
+                },
+                devs: vec![&d1],
+                count: 1,
+                limit: 10,
+                offset: 0,
+                order: OrderBy::Name,
+                order_by_desc: false,
+            },
+            FilterTest {
+                name: "filter by search dev_eui - no match".into(),
+                filters: Filters {
+                    application_id: None,
+                    multicast_group_id: None,
+                    search: Some("ffff".into()),
+                    search_field: SearchField::DevEui,
+                    ..Default::default()
+                },
+                devs: vec![],
+                count: 0,
+                limit: 10,
+                offset: 0,
+                order: OrderBy::Name,
+                order_by_desc: false,
+            },
+            FilterTest {
+                name: "filter by search dev_eui - match".into(),
+                filters: Filters {
+                    application_id: None,
+                    multicast_group_id: None,
+                    search: Some("0102".into()),
+                    search_field: SearchField::DevEui,
                     ..Default::default()
                 },
                 devs: vec![&d1],

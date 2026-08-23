@@ -279,6 +279,15 @@ impl FromProto<device::OrderBy> for api::list_devices_request::OrderBy {
     }
 }
 
+impl FromProto<device::SearchField> for api::list_devices_request::SearchField {
+    fn from_proto(self) -> device::SearchField {
+        match self {
+            Self::Name => device::SearchField::Name,
+            Self::DevEui => device::SearchField::DevEui,
+        }
+    }
+}
+
 impl FromProto<gateway::OrderBy> for api::list_gateways_request::OrderBy {
     fn from_proto(self) -> gateway::OrderBy {
         match self {

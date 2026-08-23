@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 
 import { format } from "date-fns";
-import { Space, Button, Dropdown, Modal, Select, Tag, Popover, Typography } from "antd";
+import { Space, Button, Dropdown, Modal, Select, Tag, Popover, Typography, Input } from "antd";
 import type { SelectProps } from "antd/lib";
 import type { ColumnsType } from "antd/es/table";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -73,6 +73,10 @@ function ListDevices(props: IProps) {
   const [relaySelected, setRelaySelected] = useState<string>("");
   const [applicationDeviceProfiles, setApplicationDeviceProfiles] = useState<ApplicationDeviceProfileListItem[]>([]);
   const [applicationDeviceTags, setApplicationDeviceTags] = useState<ApplicationDeviceTagListItem[]>([]);
+  const [search, setSearch] = useState<string>("");
+  const [searchField, setSearchField] = useState<ListDevicesRequest.SearchField>(
+    ListDevicesRequest.SearchField.SEARCH_FIELD_NAME,
+  );
 
   useEffect(() => {
     const appDpReq = new ListApplicationDeviceProfilesRequest();
@@ -257,6 +261,8 @@ function ListDevices(props: IProps) {
     req.setOffset(offset);
     req.setOrderBy(getOrderBy(orderBy));
     req.setOrderByDesc(orderByDesc || false);
+    req.setSearch(search);
+    req.setSearchField(searchField);
 
     {
       let tagsFilter = f.tags;
@@ -421,7 +427,29 @@ function ListDevices(props: IProps) {
           </Dropdown>
         </Space>
       </Admin>
-      <DataTable columns={columns} getPage={getPage} onRowsSelectChange={onRowsSelectChange} rowKey="devEui" />
+      <Space.Compact>
+        <Select
+          value={searchField}
+          onChange={setSearchField}
+          options={[
+            { value: ListDevicesRequest.SearchField.SEARCH_FIELD_NAME, label: "Name" },
+            { value: ListDevicesRequest.SearchField.SEARCH_FIELD_DEV_EUI, label: "DevEUI" },
+          ]}
+        />
+        <Input.Search
+          placeholder="Search"
+          allowClear
+          onSearch={setSearch}
+          style={{ width: 300 }}
+        />
+      </Space.Compact>
+      <DataTable
+        columns={columns}
+        getPage={getPage}
+        onRowsSelectChange={onRowsSelectChange}
+        rowKey="devEui"
+        refreshKey={`${search}-${searchField}`}
+      />
     </Space>
   );
 }

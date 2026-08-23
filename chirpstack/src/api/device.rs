@@ -297,6 +297,7 @@ impl DeviceService for Device {
             } else {
                 Some(req.search.to_string())
             },
+            search_field: req.search_field().from_proto(),
             tags: req.tags.clone(),
         };
 
