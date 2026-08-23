@@ -82,9 +82,19 @@ impl Stats {
         if let Some(loc) = &self.stats.location {
             // Sanity check to make sure there is a location.
             if !(loc.latitude == 0.0 && loc.longitude == 0.0 && loc.altitude == 0.0) {
-                gw_cs.latitude = Some(loc.latitude);
-                gw_cs.longitude = Some(loc.longitude);
-                gw_cs.altitude = Some(loc.altitude as f32);
+                let gw = gateway::get(&self.gateway_id)
+                    .await
+                    .context("Get gateway")?;
+
+                // Only apply the location reported in the stats payload if the
+                // gateway does not already have a manually-set location -
+                // stats updates must never override a location configured
+                // through the gateway form.
+                if gw.latitude == 0.0 && gw.longitude == 0.0 {
+                    gw_cs.latitude = Some(loc.latitude);
+                    gw_cs.longitude = Some(loc.longitude);
+                    gw_cs.altitude = Some(loc.altitude as f32);
+                }
             }
         }
 
@@ -364,4 +374,62 @@ fn per_modultation_to_per_dr(
     }
 
     Ok(out)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test;
+
+    #[tokio::test]
+    async fn test_update_gateway_state_location() {
+        let _guard = test::prepare().await;
+
+        let gw =
+            gateway::test::create_gateway(EUI64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8])).await;
+        assert_eq!(0.0, gw.latitude);
+        assert_eq!(0.0, gw.longitude);
+
+        // Gateway has no manually-set location: the stats payload's location
+        // must be applied.
+        let mut ctx = Stats {
+            gateway_id: gw.gateway_id,
+            stats: gw::GatewayStats {
+                location: Some(common::Location {
+                    latitude: 1.234,
+                    longitude: 2.345,
+                    altitude: 10.0,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            gateway: None,
+        };
+        ctx.update_gateway_state().await.unwrap();
+        let updated = gateway::get(&gw.gateway_id).await.unwrap();
+        assert_eq!(1.234, updated.latitude);
+        assert_eq!(2.345, updated.longitude);
+        assert_eq!(10.0, updated.altitude);
+
+        // Gateway now has a manually-set (non-zero) location: a subsequent
+        // stats payload's location must not override it.
+        let mut ctx = Stats {
+            gateway_id: gw.gateway_id,
+            stats: gw::GatewayStats {
+                location: Some(common::Location {
+                    latitude: 9.999,
+                    longitude: 8.888,
+                    altitude: 99.0,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            gateway: None,
+        };
+        ctx.update_gateway_state().await.unwrap();
+        let updated = gateway::get(&gw.gateway_id).await.unwrap();
+        assert_eq!(1.234, updated.latitude);
+        assert_eq!(2.345, updated.longitude);
+        assert_eq!(10.0, updated.altitude);
+    }
 }
