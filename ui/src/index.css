@@ -89,6 +89,12 @@
   .layout-content {
     padding: 12px;
   }
+
+  /* Map.tsx sets height via inline style; !important is required to
+     override it. Matches the same breakpoint as .layout-content above. */
+  .leaflet-container {
+    height: 300px !important;
+  }
 }
 
 .layout-content .content-header h3 {
