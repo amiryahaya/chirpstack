@@ -1,5 +1,9 @@
+/* .layout's margin-left is applied inline in App.tsx, driven by the same
+   collapsed state that controls Layout.Sider's width, so the two can
+   never drift out of sync with each other. The transition matches antd's
+   own default Sider collapse animation so the two move in sync visually. */
 .layout {
-  margin-left: 300px;
+  transition: margin-left 0.2s;
 }
 
 .layout-header {
@@ -12,19 +16,39 @@
   width: 100%;
 }
 
+.layout-header > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.layout-header .sider-toggle {
+  flex: 0 0 auto;
+}
+
 .layout-header .logo {
-  float: left;
-  margin-top: 16px;
+  flex: 0 0 auto;
   height: 32px;
 }
 
 .layout-header .actions {
-  float: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.layout-header .actions > div {
-  display: inline;
-  padding-left: 24px;
+.layout-header .actions .search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.layout-header .actions .help,
+.layout-header .actions .user {
+  flex: 0 0 auto;
 }
 
 .layout-menu {
@@ -50,10 +74,21 @@
 
 .layout-content {
   margin-top: 65px;
+  padding: 24px;
 }
 
 .layout-content .content-header > * {
   float: right;
+}
+
+/* Matches the viewport range antd's Layout.Sider breakpoint="lg" auto-
+   collapses in (991px = one pixel below antd's lg breakpoint of 992px),
+   so header/content spacing tightens up in exactly the same range the
+   sidebar starts hiding itself. */
+@media (max-width: 991px) {
+  .layout-content {
+    padding: 12px;
+  }
 }
 
 .layout-content .content-header h3 {

@@ -2,12 +2,15 @@ import type { ReactElement } from "react";
 import React, { useState } from "react";
 import type { RouterProps } from "react-router";
 import { Router, Routes, Route } from "react-router";
-import { Layout } from "antd";
+import { Drawer, Grid, Layout } from "antd";
 
 import type { User } from "@chirpstack/chirpstack-api-grpc-web/api/user_pb";
 
 import Header from "./components/Header";
 import Menu from "./components/Menu";
+import { DRAWER_WIDTH, SIDER_WIDTH, useResponsiveSider } from "./hooks/useResponsiveSider";
+
+const { useBreakpoint } = Grid;
 
 // dashboard
 import Dashboard from "./views/dashboard/Dashboard";
@@ -64,6 +67,13 @@ function App() {
     setUser(SessionStore.getUser());
   });
 
+  const screens = useBreakpoint();
+  // Only "broken" once the observer explicitly reports lg=false — biases
+  // toward desktop on the first render (screens.lg is undefined until the
+  // observer reports), avoiding a flash of mobile layout.
+  const broken = screens.lg === false;
+  const { drawerOpen, openDrawer, closeDrawer, contentMarginLeft } = useResponsiveSider(broken);
+
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <CustomRouter history={history}>
@@ -75,13 +85,15 @@ function App() {
         {user && (
           <div>
             <Layout.Header className="layout-header">
-              <Header user={user} />
+              <Header user={user} showSiderToggle={broken} onSiderOpen={openDrawer} />
             </Layout.Header>
-            <Layout className="layout">
-              <Layout.Sider width="300" theme="light" className="layout-menu">
-                <Menu />
-              </Layout.Sider>
-              <Layout.Content className="layout-content" style={{ padding: "24px 24px 24px" }}>
+            <Layout className="layout" style={{ marginLeft: contentMarginLeft }}>
+              {!broken && (
+                <Layout.Sider width={SIDER_WIDTH} theme="light" className="layout-menu">
+                  <Menu />
+                </Layout.Sider>
+              )}
+              <Layout.Content className="layout-content">
                 <Routes>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/tenants" element={<ListTenants />} />
@@ -104,6 +116,19 @@ function App() {
                 </Routes>
               </Layout.Content>
             </Layout>
+            {broken && (
+              <Drawer
+                title="Menu"
+                placement="left"
+                width={DRAWER_WIDTH}
+                open={drawerOpen}
+                onClose={closeDrawer}
+                closable
+                styles={{ body: { padding: 0 } }}
+              >
+                <Menu />
+              </Drawer>
+            )}
           </div>
         )}
       </CustomRouter>
