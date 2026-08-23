@@ -41,7 +41,7 @@ function GcpPubSubCard(props: IProps) {
   }
 
   return (
-    <Col span={8}>
+    <Col xs={24} sm={12} md={8}>
       <Card
         title="GCP Pub/Sub"
         className="integration-card"

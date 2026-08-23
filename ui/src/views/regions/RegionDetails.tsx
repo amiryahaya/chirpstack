@@ -53,7 +53,7 @@ function RegionDetails() {
         </Card>
       )}
       <Row gutter={24}>
-        <Col span={12}>
+        <Col xs={24} sm={12}>
           <Space orientation="vertical" style={{ width: "100%" }} size="large">
             <Card title="Uplink channels">
               <List
@@ -74,7 +74,7 @@ function RegionDetails() {
             </Card>
           </Space>
         </Col>
-        <Col span={12}>
+        <Col xs={24} sm={12}>
           <Space orientation="vertical" style={{ width: "100%" }} size="large">
             <Card title="Downlink">
               <List

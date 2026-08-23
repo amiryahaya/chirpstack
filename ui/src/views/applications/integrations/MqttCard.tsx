@@ -12,7 +12,7 @@ function MqttCard(props: IProps) {
   const actions = [<Link to="mqtt/certificate">Get certificate</Link>];
 
   return (
-    <Col span={8}>
+    <Col xs={24} sm={12} md={8}>
       <Card
         title="MQTT"
         className="integration-card"

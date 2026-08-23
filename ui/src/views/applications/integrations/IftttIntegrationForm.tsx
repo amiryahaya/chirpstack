@@ -58,7 +58,7 @@ function IftttIntegrationForm(props: IProps) {
         <Input.Password />
       </Form.Item>
       <Row gutter={24}>
-        <Col span={12}>
+        <Col xs={24} sm={12}>
           <Form.Item
             label="Event prefix"
             name="eventPrefix"
@@ -73,7 +73,7 @@ function IftttIntegrationForm(props: IProps) {
             <Input />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col xs={24} sm={12}>
           <Form.Item
             label="Publish as arbitrary JSON"
             name="arbitraryJson"
@@ -89,7 +89,7 @@ function IftttIntegrationForm(props: IProps) {
           {fields => (
             <Row gutter={24}>
               {fields.map((field, i) => (
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item
                     label={`Value ${i + 1} key`}
                     {...field}

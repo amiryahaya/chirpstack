@@ -58,12 +58,12 @@ function LW10DeviceActivationForm(props: FormProps) {
       <AesKeyInput label="Network session key (LoRaWAN 1.0)" name="nwkSEncKey" required />
       <AesKeyInput label="Application session key (LoRaWAN 1.0)" name="appSKey" required />
       <Row gutter={24}>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Form.Item label="Uplink frame-counter" name="fCntUp">
             <InputNumber min={0} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Form.Item label="Downlink frame-counter" name="nFCntDown">
             <InputNumber min={0} />
           </Form.Item>
@@ -111,17 +111,17 @@ function LW11DeviceActivationForm(props: FormProps) {
       <AesKeyInput label="Forwarding network session integrity key" name="fNwkSIntKey" required />
       <AesKeyInput label="Application session key" name="appSKey" required />
       <Row gutter={24}>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Form.Item label="Uplink frame-counter" name="fCntUp">
             <InputNumber min={0} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Form.Item label="Downlink frame-counter (network)" name="nFCntDown">
             <InputNumber min={0} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Form.Item label="Downlink frame-counter (application)" name="aFCntDown">
             <InputNumber min={0} />
           </Form.Item>

@@ -41,7 +41,7 @@ function HttpCard(props: IProps) {
   }
 
   return (
-    <Col span={8}>
+    <Col xs={24} sm={12} md={8}>
       <Card
         title="HTTP"
         className="integration-card"

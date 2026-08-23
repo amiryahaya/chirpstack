@@ -61,7 +61,7 @@ function HttpIntegrationForm(props: IProps) {
             <>
               {fields.map(({ key, name, ...restField }) => (
                 <Row gutter={24}>
-                  <Col span={6}>
+                  <Col xs={24} sm={6}>
                     <Form.Item
                       {...restField}
                       name={[name, 0]}
@@ -70,7 +70,7 @@ function HttpIntegrationForm(props: IProps) {
                       <Input placeholder="Key" />
                     </Form.Item>
                   </Col>
-                  <Col span={16}>
+                  <Col xs={20} sm={16}>
                     <Form.Item
                       {...restField}
                       name={[name, 1]}
@@ -79,7 +79,7 @@ function HttpIntegrationForm(props: IProps) {
                       <Input placeholder="Value" />
                     </Form.Item>
                   </Col>
-                  <Col span={2}>
+                  <Col xs={4} sm={2}>
                     <MinusCircleOutlined onClick={() => remove(name)} />
                   </Col>
                 </Row>
