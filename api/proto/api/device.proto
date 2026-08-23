@@ -192,6 +192,12 @@ message Device {
   // Enable inactivity alert emails for this device.
   // When not set by the client, defaults to true.
   optional bool alert_enabled = 11;
+
+  // Latitude (optional).
+  optional double latitude = 12;
+
+  // Longitude (optional).
+  optional double longitude = 13;
 }
 
 message DeviceStatus {

@@ -626,6 +626,8 @@ pub async fn update(d: Device) -> Result<Device, Error> {
             device::variables.eq(&d.variables),
             device::join_eui.eq(&d.join_eui),
             device::app_layer_params.eq(&d.app_layer_params),
+            device::latitude.eq(&d.latitude),
+            device::longitude.eq(&d.longitude),
         ))
         .get_result(&mut get_async_db_conn().await?)
         .await

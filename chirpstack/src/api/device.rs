@@ -75,6 +75,8 @@ impl DeviceService for Device {
             join_eui,
             alert_enabled: req_d.alert_enabled.unwrap_or(true),
             alert_state: 0,
+            latitude: req_d.latitude,
+            longitude: req_d.longitude,
             ..Default::default()
         };
 
@@ -120,6 +122,8 @@ impl DeviceService for Device {
                 tags: d.tags.into_hashmap(),
                 join_eui: d.join_eui.to_string(),
                 alert_enabled: Some(d.alert_enabled),
+                latitude: d.latitude,
+                longitude: d.longitude,
             }),
             created_at: Some(helpers::datetime_to_prost_timestamp(&d.created_at)),
             updated_at: Some(helpers::datetime_to_prost_timestamp(&d.updated_at)),
@@ -203,6 +207,8 @@ impl DeviceService for Device {
             tags: fields::KeyValue::new(req_d.tags.clone()),
             variables: fields::KeyValue::new(req_d.variables.clone()),
             join_eui,
+            latitude: req_d.latitude,
+            longitude: req_d.longitude,
             ..Default::default()
         })
         .await
@@ -1373,6 +1379,8 @@ pub mod test {
                     device_profile_id: dp.id.to_string(),
                     name: "test-device".into(),
                     dev_eui: "0102030405060708".into(),
+                    latitude: Some(1.234),
+                    longitude: Some(2.345),
                     ..Default::default()
                 }),
             },
@@ -1395,6 +1403,8 @@ pub mod test {
                 dev_eui: "0102030405060708".into(),
                 join_eui: "0000000000000000".into(),
                 alert_enabled: Some(true),
+                latitude: Some(1.234),
+                longitude: Some(2.345),
                 ..Default::default()
             }),
             get_resp.get_ref().device

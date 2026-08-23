@@ -1,6 +1,6 @@
 import { Children, useState } from "react";
 
-import { Form, Input, Row, Col, Button, Tabs, Switch, Modal, Space, notification } from "antd";
+import { Form, Input, InputNumber, Row, Col, Button, Tabs, Switch, Modal, Space, notification } from "antd";
 import type { TabsProps } from "antd/lib";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { Scanner } from "@yudiel/react-qr-scanner";
@@ -45,6 +45,13 @@ function DeviceForm(props: IProps) {
     d.setSkipFcntCheck(v.skipFcntCheck);
     d.setAlertEnabled(v.alertEnabled ?? true);
     d.setJoinEui(v.joinEui);
+
+    if (v.latitude !== undefined) {
+      d.setLatitude(v.latitude);
+    }
+    if (v.longitude !== undefined) {
+      d.setLongitude(v.longitude);
+    }
 
     // tags
     for (const elm of v.tagsMap) {
@@ -164,6 +171,18 @@ function DeviceForm(props: IProps) {
           >
             <Switch disabled={props.disabled} />
           </Form.Item>
+          <Row gutter={24}>
+            <Col xs={24} sm={12}>
+              <Form.Item label="Latitude" name="latitude" tooltip="The device's GPS latitude.">
+                <InputNumber min={-90} max={90} style={{ width: "100%" }} disabled={props.disabled} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item label="Longitude" name="longitude" tooltip="The device's GPS longitude.">
+                <InputNumber min={-180} max={180} style={{ width: "100%" }} disabled={props.disabled} />
+              </Form.Item>
+            </Col>
+          </Row>
         </>
       ),
     },
@@ -252,6 +271,13 @@ function DeviceForm(props: IProps) {
   const formInitialValues = {
     ...props.initialValues.toObject(),
     ...(!props.update && { alertEnabled: true }),
+    // toObject() fills unset optional scalars with their zero-value default
+    // (0), so it can't be used directly to tell "unset" apart from "really
+    // 0,0" (a valid but almost certainly wrong coordinate). Read through
+    // hasLatitude()/hasLongitude() instead so an unset device leaves these
+    // fields blank rather than defaulting to null island.
+    latitude: props.initialValues.hasLatitude() ? props.initialValues.getLatitude() : undefined,
+    longitude: props.initialValues.hasLongitude() ? props.initialValues.getLongitude() : undefined,
   };
 
   return (
