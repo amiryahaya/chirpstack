@@ -48,6 +48,7 @@ impl ApplicationService for Application {
             name: req_app.name.clone(),
             description: req_app.description.clone(),
             tags: fields::KeyValue::new(req_app.tags.clone()),
+            icon: req_app.icon.clone(),
             ..Default::default()
         };
 
@@ -88,6 +89,7 @@ impl ApplicationService for Application {
                 name: a.name,
                 description: a.description,
                 tags: a.tags.into_hashmap(),
+                icon: a.icon,
             }),
             created_at: Some(helpers::datetime_to_prost_timestamp(&a.created_at)),
             updated_at: Some(helpers::datetime_to_prost_timestamp(&a.updated_at)),
@@ -123,6 +125,7 @@ impl ApplicationService for Application {
             name: req_app.name.to_string(),
             description: req_app.description.to_string(),
             tags: fields::KeyValue::new(req_app.tags.clone()),
+            icon: req_app.icon.clone(),
             ..Default::default()
         })
         .await
@@ -1931,6 +1934,7 @@ pub mod test {
             application: Some(api::Application {
                 tenant_id: t.id.to_string(),
                 name: "test-app".into(),
+                icon: "industry".into(),
                 ..Default::default()
             }),
         };
@@ -1955,6 +1959,7 @@ pub mod test {
                 id: create_resp.id.clone(),
                 tenant_id: t.id.to_string(),
                 name: "test-app".into(),
+                icon: "industry".into(),
                 ..Default::default()
             }),
             get_resp.get_ref().application
@@ -1966,6 +1971,7 @@ pub mod test {
                 id: create_resp.id.clone(),
                 tenant_id: t.id.to_string(),
                 name: "updated-app".into(),
+                icon: "home".into(),
                 ..Default::default()
             }),
         };
@@ -1989,6 +1995,7 @@ pub mod test {
                 id: create_resp.id.clone(),
                 tenant_id: t.id.to_string(),
                 name: "updated-app".into(),
+                icon: "home".into(),
                 ..Default::default()
             }),
             get_resp.get_ref().application

@@ -36,6 +36,7 @@ diesel::table! {
         description -> Text,
         mqtt_tls_cert -> Nullable<Bytea>,
         tags -> Jsonb,
+        icon -> Text,
     }
 }
 

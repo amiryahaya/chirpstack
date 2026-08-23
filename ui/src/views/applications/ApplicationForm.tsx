@@ -1,9 +1,71 @@
 import { Application } from "@chirpstack/chirpstack-api-grpc-web/api/application_pb";
-import { Form, Input, Button, Tabs, Row, Col } from "antd";
+import { Form, Input, Select, Button, Tabs, Row, Col, Space } from "antd";
 import type { TabsProps } from "antd/lib";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faIndustry,
+  faWarehouse,
+  faBuilding,
+  faHome,
+  faHospital,
+  faUniversity,
+  faTractor,
+  faLeaf,
+  faTree,
+  faWater,
+  faTint,
+  faBolt,
+  faSun,
+  faCloud,
+  faSnowflake,
+  faFire,
+  faTruck,
+  faShip,
+  faPlane,
+  faAnchor,
+  faRoad,
+  faShoppingCart,
+  faGlobe,
+  faCube,
+  faMapMarker,
+  faWifi,
+} from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 import { onFinishFailed } from "../helpers";
+
+// Map pin icon options. The `value` is the bare Font Awesome Free glyph name
+// used both here (for the preview) and by Map.tsx's Marker component (which
+// passes it straight through to leaflet.awesome-markers as `faIcon`).
+const iconOptions: { value: string; icon: IconDefinition }[] = [
+  { value: "map-marker", icon: faMapMarker },
+  { value: "industry", icon: faIndustry },
+  { value: "warehouse", icon: faWarehouse },
+  { value: "building", icon: faBuilding },
+  { value: "home", icon: faHome },
+  { value: "hospital", icon: faHospital },
+  { value: "university", icon: faUniversity },
+  { value: "tractor", icon: faTractor },
+  { value: "leaf", icon: faLeaf },
+  { value: "tree", icon: faTree },
+  { value: "water", icon: faWater },
+  { value: "tint", icon: faTint },
+  { value: "bolt", icon: faBolt },
+  { value: "sun", icon: faSun },
+  { value: "cloud", icon: faCloud },
+  { value: "snowflake", icon: faSnowflake },
+  { value: "fire", icon: faFire },
+  { value: "truck", icon: faTruck },
+  { value: "ship", icon: faShip },
+  { value: "plane", icon: faPlane },
+  { value: "anchor", icon: faAnchor },
+  { value: "road", icon: faRoad },
+  { value: "shopping-cart", icon: faShoppingCart },
+  { value: "globe", icon: faGlobe },
+  { value: "cube", icon: faCube },
+  { value: "wifi", icon: faWifi },
+];
 
 interface IProps {
   initialValues: Application;
@@ -20,6 +82,7 @@ function ApplicationForm(props: IProps) {
     app.setTenantId(v.tenantId);
     app.setName(v.name);
     app.setDescription(v.description);
+    app.setIcon(v.icon || "");
 
     // tags
     for (const elm of v.tagsMap) {
@@ -40,6 +103,26 @@ function ApplicationForm(props: IProps) {
           </Form.Item>
           <Form.Item label="Description" name="description">
             <Input.TextArea disabled={props.disabled} />
+          </Form.Item>
+          <Form.Item
+            label="Map pin icon"
+            name="icon"
+            tooltip="Used to render this application's devices and gateways on a map."
+          >
+            <Select
+              allowClear
+              placeholder="Default"
+              disabled={props.disabled}
+              options={iconOptions.map(o => ({
+                value: o.value,
+                label: (
+                  <Space>
+                    <FontAwesomeIcon icon={o.icon} />
+                    {o.value}
+                  </Space>
+                ),
+              }))}
+            />
           </Form.Item>
         </>
       ),

@@ -34,6 +34,7 @@ diesel::table! {
         description -> Text,
         mqtt_tls_cert -> Nullable<Binary>,
         tags -> Text,
+        icon -> Text,
     }
 }
 

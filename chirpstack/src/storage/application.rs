@@ -32,6 +32,7 @@ pub struct Application {
     pub description: String,
     pub mqtt_tls_cert: Option<Vec<u8>>,
     pub tags: fields::KeyValue,
+    pub icon: String,
 }
 
 impl Application {
@@ -56,6 +57,7 @@ impl Default for Application {
             description: "".into(),
             mqtt_tls_cert: None,
             tags: fields::KeyValue::new(HashMap::new()),
+            icon: "".into(),
         }
     }
 }
@@ -329,6 +331,7 @@ pub async fn update(a: Application) -> Result<Application, Error> {
             application::name.eq(&a.name),
             application::description.eq(&a.description),
             application::tags.eq(&a.tags),
+            application::icon.eq(&a.icon),
         ))
         .get_result(&mut get_async_db_conn().await?)
         .await

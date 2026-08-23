@@ -479,6 +479,11 @@ message Application {
   // These tags are exposed in all the integration events of devices under
   // this application.
   map<string, string> tags = 5;
+
+  // Map pin icon (optional).
+  // Font Awesome Free icon name (e.g. "industry") used to render devices and
+  // gateways of this application on a map.
+  string icon = 6;
 }
 
 message ApplicationListItem {
