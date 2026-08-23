@@ -76,6 +76,7 @@ pub struct ApplicationListItem {
     pub updated_at: DateTime<Utc>,
     pub name: String,
     pub description: String,
+    pub icon: String,
 }
 
 #[derive(Deserialize, Serialize, Copy, Clone, Debug, Eq, PartialEq, AsExpression, FromSqlRow)]
@@ -445,6 +446,7 @@ pub async fn list(
             application::updated_at,
             application::name,
             application::description,
+            application::icon,
         ))
         .into_boxed();
 

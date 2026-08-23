@@ -208,6 +208,7 @@ impl ApplicationService for Application {
                     updated_at: Some(helpers::datetime_to_prost_timestamp(&a.updated_at)),
                     name: a.name.clone(),
                     description: a.description.clone(),
+                    icon: a.icon.clone(),
                 })
                 .collect(),
         });

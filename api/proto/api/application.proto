@@ -501,6 +501,9 @@ message ApplicationListItem {
 
   // Application description.
   string description = 5;
+
+  // Map pin icon.
+  string icon = 6;
 }
 
 message CreateApplicationRequest {

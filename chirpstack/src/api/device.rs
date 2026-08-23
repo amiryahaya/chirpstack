@@ -265,7 +265,16 @@ impl DeviceService for Device {
             } else {
                 None
             };
-        let app_id = Uuid::from_str(&req.application_id).map_err(|e| e.status())?;
+        let tenant_id: Option<Uuid> = if req.tenant_id.is_empty() {
+            None
+        } else {
+            Some(Uuid::from_str(&req.tenant_id).map_err(|e| e.status())?)
+        };
+        let app_id: Option<Uuid> = if req.application_id.is_empty() {
+            None
+        } else {
+            Some(Uuid::from_str(&req.application_id).map_err(|e| e.status())?)
+        };
         let mg_id: Option<Uuid> = if req.multicast_group_id.is_empty() {
             None
         } else {
@@ -277,12 +286,36 @@ impl DeviceService for Device {
             Some(Uuid::from_str(&req.device_profile_id).map_err(|e| e.status())?)
         };
 
-        self.validator
-            .validate(
-                request.extensions(),
-                validator::ValidateDevicesAccess::new(validator::Flag::List, app_id),
-            )
-            .await?;
+        // At least one of tenant_id / application_id is required: Filters.user_id
+        // (the row-level permission check in storage) is only populated for
+        // AuthID::User, not AuthID::ApiKey -- an unscoped call would bypass all
+        // permission checks for an API key, unlike ValidateTenantDevicesAccess /
+        // ValidateDevicesAccess below, which check both.
+        if tenant_id.is_none() && app_id.is_none() {
+            return Err(Status::invalid_argument(
+                "tenant_id or application_id must be set",
+            ));
+        }
+
+        // Prefer tenant-scoped access when a tenant_id is given (this also allows
+        // listing devices across all applications of a tenant in one call). Fall
+        // back to the existing per-application check when only application_id is
+        // set.
+        if let Some(tenant_id) = tenant_id {
+            self.validator
+                .validate(
+                    request.extensions(),
+                    validator::ValidateTenantDevicesAccess::new(validator::Flag::List, tenant_id),
+                )
+                .await?;
+        } else if let Some(app_id) = app_id {
+            self.validator
+                .validate(
+                    request.extensions(),
+                    validator::ValidateDevicesAccess::new(validator::Flag::List, app_id),
+                )
+                .await?;
+        }
 
         if let Some(mg_id) = mg_id {
             self.validator
@@ -295,7 +328,8 @@ impl DeviceService for Device {
 
         let filters = device::Filters {
             user_id,
-            application_id: Some(app_id),
+            tenant_id,
+            application_id: app_id,
             multicast_group_id: mg_id,
             device_profile_id: dp_id,
             search: if req.search.is_empty() {
@@ -346,11 +380,16 @@ impl DeviceService for Device {
                         false => None,
                     },
                     tags: d.tags.into_hashmap(),
+                    application_id: d.application_id.to_string(),
+                    latitude: d.latitude,
+                    longitude: d.longitude,
                 })
                 .collect(),
         });
         resp.metadata_mut()
             .insert("x-log-application_id", req.application_id.parse().unwrap());
+        resp.metadata_mut()
+            .insert("x-log-tenant_id", req.tenant_id.parse().unwrap());
 
         Ok(resp)
     }
@@ -1410,6 +1449,21 @@ pub mod test {
             get_resp.get_ref().device
         );
 
+        // list, by tenant_id, returns the create-time location
+        let list_req = get_request(
+            &u.id,
+            api::ListDevicesRequest {
+                tenant_id: t.id.to_string(),
+                limit: 10,
+                offset: 0,
+                ..Default::default()
+            },
+        );
+        let list_resp = service.list(list_req).await.unwrap();
+        assert_eq!(1, list_resp.get_ref().total_count);
+        assert_eq!(Some(1.234), list_resp.get_ref().result[0].latitude);
+        assert_eq!(Some(2.345), list_resp.get_ref().result[0].longitude);
+
         // update
         let update_req = get_request(
             &u.id,
@@ -1524,6 +1578,31 @@ pub mod test {
         let list_resp = service.list(list_req).await.unwrap();
         assert_eq!(1, list_resp.get_ref().total_count);
         assert_eq!(1, list_resp.get_ref().result.len());
+
+        // list by tenant_id (no application_id)
+        let list_req = get_request(
+            &u.id,
+            api::ListDevicesRequest {
+                tenant_id: t.id.to_string(),
+                limit: 10,
+                offset: 0,
+                ..Default::default()
+            },
+        );
+        let list_resp = service.list(list_req).await.unwrap();
+        assert_eq!(1, list_resp.get_ref().total_count);
+        assert_eq!(1, list_resp.get_ref().result.len());
+
+        // list without tenant_id or application_id is rejected
+        let list_req = get_request(
+            &u.id,
+            api::ListDevicesRequest {
+                limit: 10,
+                offset: 0,
+                ..Default::default()
+            },
+        );
+        assert!(service.list(list_req).await.is_err());
 
         // create keys
         let create_keys_req = get_request(

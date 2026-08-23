@@ -1,4 +1,5 @@
-import { ReactElement, useEffect, useState } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { presetPalettes } from "@ant-design/colors";
@@ -22,18 +23,30 @@ import {
 
 import type { ListGatewaysResponse, GatewayListItem } from "@chirpstack/chirpstack-api-grpc-web/api/gateway_pb";
 import { ListGatewaysRequest, GatewayState } from "@chirpstack/chirpstack-api-grpc-web/api/gateway_pb";
+import type { ListDevicesResponse, DeviceListItem } from "@chirpstack/chirpstack-api-grpc-web/api/device_pb";
+import { ListDevicesRequest } from "@chirpstack/chirpstack-api-grpc-web/api/device_pb";
+import type { ListApplicationsResponse } from "@chirpstack/chirpstack-api-grpc-web/api/application_pb";
+import { ListApplicationsRequest } from "@chirpstack/chirpstack-api-grpc-web/api/application_pb";
 
 import InternalStore from "../../stores/InternalStore";
 import GatewayStore from "../../stores/GatewayStore";
+import DeviceStore from "../../stores/DeviceStore";
+import ApplicationStore from "../../stores/ApplicationStore";
 import type { MarkerColor } from "../../components/Map";
 import Map, { Marker } from "../../components/Map";
 
-interface GatewaysMapProps {
-  items: GatewayListItem[];
+// Fallback map pin icon for devices whose application has no icon set.
+const defaultDeviceIcon = "map-marker";
+
+interface NetworkMapProps {
+  tenantId: string;
+  gateways: GatewayListItem[];
+  devices: DeviceListItem[];
+  applicationIcons: globalThis.Map<string, string>;
 }
 
-function GatewaysMap(props: GatewaysMapProps) {
-  if (props.items.length === 0) {
+function NetworkMap(props: NetworkMapProps) {
+  if (props.gateways.length === 0 && props.devices.length === 0) {
     return <Empty />;
   }
 
@@ -46,7 +59,7 @@ function GatewaysMap(props: GatewaysMapProps) {
   const bounds: LatLngTuple[] = [];
   const markers: ReactElement[] = [];
 
-  for (const item of props.items) {
+  for (const item of props.gateways) {
     if (item.getLocation() === undefined) {
       continue;
     }
@@ -68,7 +81,7 @@ function GatewaysMap(props: GatewaysMapProps) {
     }
 
     markers.push(
-      <Marker position={[pos[0], pos[1]]} faIcon="wifi" color={color} key={`${item.getGatewayId()}`}>
+      <Marker position={[pos[0], pos[1]]} faIcon="wifi" color={color} key={`gw-${item.getGatewayId()}`}>
         <Popup>
           <Link to={`/tenants/${item.getTenantId()}/gateways/${item.getGatewayId()}`}>{item.getName()}</Link>
           <br />
@@ -76,6 +89,31 @@ function GatewaysMap(props: GatewaysMapProps) {
           <br />
           <br />
           {lastSeen}
+        </Popup>
+      </Marker>,
+    );
+  }
+
+  for (const item of props.devices) {
+    if (!item.hasLatitude() || !item.hasLongitude()) {
+      continue;
+    }
+
+    const pos: LatLngTuple = [item.getLatitude(), item.getLongitude()];
+    bounds.push(pos);
+
+    const icon = props.applicationIcons.get(item.getApplicationId()) || defaultDeviceIcon;
+
+    markers.push(
+      <Marker position={[pos[0], pos[1]]} faIcon={icon} color="blue" key={`dev-${item.getDevEui()}`}>
+        <Popup>
+          <Link
+            to={`/tenants/${props.tenantId}/applications/${item.getApplicationId()}/devices/${item.getDevEui()}`}
+          >
+            {item.getName()}
+          </Link>
+          <br />
+          {item.getDevEui()}
         </Popup>
       </Marker>,
     );
@@ -236,6 +274,8 @@ function DevicesDataRates(props: DeviceProps) {
 
 function TenantDashboard({ tenant }: { tenant: Tenant }) {
   const [gatewayItems, setGatewayItems] = useState<GatewayListItem[]>([]);
+  const [deviceItems, setDeviceItems] = useState<DeviceListItem[]>([]);
+  const [applicationIcons, setApplicationIcons] = useState<globalThis.Map<string, string>>(new globalThis.Map());
   const [gatewaysSummary, setGatewaysSummary] = useState<GetGatewaysSummaryResponse | undefined>(undefined);
   const [devicesSummary, setDevicesSummary] = useState<GetDevicesSummaryResponse | undefined>(undefined);
 
@@ -267,6 +307,32 @@ function TenantDashboard({ tenant }: { tenant: Tenant }) {
         setGatewayItems(resp.getResultList());
       });
     }
+
+    {
+      const req = new ListDevicesRequest();
+      req.setTenantId(tenant.getId());
+      req.setLimit(9999);
+
+      DeviceStore.list(req, (resp: ListDevicesResponse) => {
+        setDeviceItems(resp.getResultList());
+      });
+    }
+
+    {
+      const req = new ListApplicationsRequest();
+      req.setTenantId(tenant.getId());
+      req.setLimit(9999);
+
+      ApplicationStore.list(req, (resp: ListApplicationsResponse) => {
+        const icons = new globalThis.Map<string, string>();
+        for (const item of resp.getResultList()) {
+          if (item.getIcon() !== "") {
+            icons.set(item.getId(), item.getIcon());
+          }
+        }
+        setApplicationIcons(icons);
+      });
+    }
   }, [tenant]);
 
   return (
@@ -288,8 +354,13 @@ function TenantDashboard({ tenant }: { tenant: Tenant }) {
           </Card>
         </Col>
       </Row>
-      <Card title="Gateway map">
-        <GatewaysMap items={gatewayItems} />
+      <Card title="Map">
+        <NetworkMap
+          tenantId={tenant.getId()}
+          gateways={gatewayItems}
+          devices={deviceItems}
+          applicationIcons={applicationIcons}
+        />
       </Card>
     </Space>
   );

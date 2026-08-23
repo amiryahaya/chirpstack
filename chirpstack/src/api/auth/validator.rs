@@ -1621,6 +1621,75 @@ impl Validator for ValidateDevicesAccess {
     }
 }
 
+pub struct ValidateTenantDevicesAccess {
+    flag: Flag,
+    tenant_id: Uuid,
+}
+
+impl ValidateTenantDevicesAccess {
+    pub fn new(flag: Flag, tenant_id: Uuid) -> Self {
+        ValidateTenantDevicesAccess { flag, tenant_id }
+    }
+}
+
+#[async_trait]
+impl Validator for ValidateTenantDevicesAccess {
+    async fn validate_user(&self, id: &Uuid) -> Result<i64, Error> {
+        let mut q = user::table
+            .select(dsl::count_star())
+            .filter(
+                user::id
+                    .eq(fields::Uuid::from(id))
+                    .and(user::is_active.eq(true)),
+            )
+            .into_boxed();
+
+        match self.flag {
+            // global admin
+            // tenant user (filtered by storage function)
+            Flag::List => {
+                q =
+                    q.filter(user::is_admin.eq(true).or(
+                        dsl::exists(
+                            tenant_user::table.filter(tenant_user::user_id.eq(user::id).and(
+                                tenant_user::tenant_id.eq(fields::Uuid::from(self.tenant_id)),
+                            )),
+                        ),
+                    ));
+            }
+            _ => {
+                return Ok(0);
+            }
+        }
+
+        Ok(q.first(&mut get_async_db_conn().await?).await?)
+    }
+
+    async fn validate_key(&self, id: &Uuid) -> Result<i64, Error> {
+        let mut q = api_key::table
+            .select(dsl::count_star())
+            .find(fields::Uuid::from(id))
+            .into_boxed();
+
+        match self.flag {
+            // admin api key
+            // tenant api key
+            Flag::List => {
+                q = q.filter(
+                    api_key::is_admin
+                        .eq(true)
+                        .or(api_key::tenant_id.eq(fields::Uuid::from(self.tenant_id))),
+                );
+            }
+            _ => {
+                return Ok(0);
+            }
+        }
+
+        Ok(q.first(&mut get_async_db_conn().await?).await?)
+    }
+}
+
 pub struct ValidateDeviceAccess {
     flag: Flag,
     dev_eui: EUI64,
@@ -5216,6 +5285,48 @@ pub mod test {
                     ValidateDevicesAccess::new(Flag::Create, app.id.into()),
                     ValidateDevicesAccess::new(Flag::List, app.id.into()),
                 ],
+                id: AuthID::Key(api_key_other_tenant.id.into()),
+                ok: false,
+            },
+        ];
+        run_tests(tests).await;
+
+        let tenant_id: Uuid = api_key_tenant.tenant_id.unwrap().into();
+
+        let tests = vec![
+            // admin user can list by tenant_id
+            ValidatorTest {
+                validators: vec![ValidateTenantDevicesAccess::new(Flag::List, tenant_id)],
+                id: AuthID::User(user_admin.id.into()),
+                ok: true,
+            },
+            // any tenant member (regardless of specific role) can list by tenant_id
+            ValidatorTest {
+                validators: vec![ValidateTenantDevicesAccess::new(Flag::List, tenant_id)],
+                id: AuthID::User(tenant_user.id.into()),
+                ok: true,
+            },
+            // a user with no relation to the tenant can not list by tenant_id
+            ValidatorTest {
+                validators: vec![ValidateTenantDevicesAccess::new(Flag::List, tenant_id)],
+                id: AuthID::User(user_active.id.into()),
+                ok: false,
+            },
+            // admin api key can list by tenant_id
+            ValidatorTest {
+                validators: vec![ValidateTenantDevicesAccess::new(Flag::List, tenant_id)],
+                id: AuthID::Key(api_key_admin.id.into()),
+                ok: true,
+            },
+            // tenant api key (matching tenant) can list by tenant_id
+            ValidatorTest {
+                validators: vec![ValidateTenantDevicesAccess::new(Flag::List, tenant_id)],
+                id: AuthID::Key(api_key_tenant.id.into()),
+                ok: true,
+            },
+            // tenant api key for a different tenant can not list by tenant_id
+            ValidatorTest {
+                validators: vec![ValidateTenantDevicesAccess::new(Flag::List, tenant_id)],
                 id: AuthID::Key(api_key_other_tenant.id.into()),
                 ok: false,
             },

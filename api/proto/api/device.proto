@@ -243,6 +243,15 @@ message DeviceListItem {
 
   // Device tags.
   map<string, string> tags = 10;
+
+  // Application ID (UUID).
+  string application_id = 13;
+
+  // Latitude (optional).
+  optional double latitude = 11;
+
+  // Longitude (optional).
+  optional double longitude = 12;
 }
 
 message DeviceKeys {
@@ -347,6 +356,11 @@ message ListDevicesRequest {
 
   // Defines the field that search is performed on (default: SEARCH_FIELD_NAME) (optional).
   SearchField search_field = 10;
+
+  // Tenant ID (UUID) to filter devices on (optional).
+  // Use this to list devices across all applications of a tenant in a
+  // single call, without setting application_id.
+  string tenant_id = 11;
 }
 
 message ListDevicesResponse {

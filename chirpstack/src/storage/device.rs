@@ -221,7 +221,7 @@ impl Default for Device {
     }
 }
 
-#[derive(Queryable, PartialEq, Eq, Debug)]
+#[derive(Queryable, PartialEq, Debug)]
 pub struct DeviceListItem {
     pub dev_eui: EUI64,
     pub name: String,
@@ -235,11 +235,15 @@ pub struct DeviceListItem {
     pub external_power_source: bool,
     pub battery_level: Option<fields::BigDecimal>,
     pub tags: fields::KeyValue,
+    pub application_id: fields::Uuid,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
 }
 
 #[derive(Default, Clone)]
 pub struct Filters {
     pub user_id: Option<Uuid>,
+    pub tenant_id: Option<Uuid>,
     pub application_id: Option<Uuid>,
     pub multicast_group_id: Option<Uuid>,
     pub device_profile_id: Option<Uuid>,
@@ -749,6 +753,10 @@ pub async fn get_count(filters: &Filters) -> Result<i64, Error> {
         ));
     }
 
+    if let Some(tenant_id) = &filters.tenant_id {
+        q = q.filter(application::dsl::tenant_id.eq(fields::Uuid::from(tenant_id)));
+    }
+
     if let Some(application_id) = &filters.application_id {
         q = q.filter(device::dsl::application_id.eq(fields::Uuid::from(application_id)));
     }
@@ -834,6 +842,9 @@ pub async fn list(
             device::external_power_source,
             device::battery_level,
             device::tags,
+            application::id,
+            device::latitude,
+            device::longitude,
         ))
         .distinct()
         .into_boxed();
@@ -871,6 +882,10 @@ pub async fn list(
                     )),
                 ),
         ));
+    }
+
+    if let Some(tenant_id) = &filters.tenant_id {
+        q = q.filter(application::dsl::tenant_id.eq(fields::Uuid::from(tenant_id)));
     }
 
     if let Some(application_id) = &filters.application_id {
