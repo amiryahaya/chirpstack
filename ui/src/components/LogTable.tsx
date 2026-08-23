@@ -98,6 +98,7 @@ function LogTable(props: IProps) {
         loading={items.length === 0}
         dataSource={items}
         pagination={false}
+        scroll={{ x: "max-content" }}
         columns={[
           {
             title: "Time",

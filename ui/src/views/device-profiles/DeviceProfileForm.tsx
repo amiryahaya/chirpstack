@@ -274,12 +274,12 @@ function DeviceProfileForm(props: IProps) {
             <Input.TextArea rows={6} disabled={props.disabled} />
           </Form.Item>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item label="Region" name="region" rules={[{ required: true, message: "Please select a region!" }]}>
                 <Select disabled={props.disabled} onChange={onRegionChange} options={regionOptions} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Region configuration"
                 tooltip="By selecting a region configuration, the device will only work within the selected region configuration. If left blank, the device will work under all region configurations of the selected region."
@@ -290,7 +290,7 @@ function DeviceProfileForm(props: IProps) {
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="MAC version"
                 tooltip="The LoRaWAN MAC version supported by the device."
@@ -310,7 +310,7 @@ function DeviceProfileForm(props: IProps) {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Regional parameters revision"
                 tooltip="Revision of the Regional Parameters specification supported by the device."
@@ -347,7 +347,7 @@ function DeviceProfileForm(props: IProps) {
             <Select disabled={props.disabled} options={adrOptions} />
           </Form.Item>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Flush queue on activate"
                 name="flushQueueOnActivate"
@@ -357,7 +357,7 @@ function DeviceProfileForm(props: IProps) {
                 <Switch disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Allow roaming"
                 name="allowRoaming"
@@ -369,7 +369,7 @@ function DeviceProfileForm(props: IProps) {
             </Col>
           </Row>
           <Row>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Expected uplink interval (secs)"
                 tooltip="The expected interval in seconds in which the device sends uplink messages. This is used to determine if a device is active or inactive."
@@ -384,7 +384,7 @@ function DeviceProfileForm(props: IProps) {
                 <InputNumber min={0} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Device-status request frequency (req/day)"
                 tooltip="Frequency to initiate an End-Device status request (request/day). Set to 0 to disable."
@@ -395,7 +395,7 @@ function DeviceProfileForm(props: IProps) {
             </Col>
           </Row>
           <Row>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="RX1 Delay (0 = use system default)"
                 tooltip="This option makes it possible to set a higher RX1 Delay for devices using this device-profile. Note that a lower value than the system default will be ignored. If configured and incremented, then ChirpStack will increase the downlink data delay with the same increment."
@@ -404,7 +404,7 @@ function DeviceProfileForm(props: IProps) {
                 <InputNumber min={0} max={15} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Supported data-rates"
                 tooltip="If not set, the default region data-rates will be used (which is most likely what you want). Only set this value if you know what you are doing."
@@ -427,7 +427,7 @@ function DeviceProfileForm(props: IProps) {
           </Form.Item>
           {!supportsOtaa && (
             <Row>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="RX1 delay"
                   name="abpRx1Delay"
@@ -437,7 +437,7 @@ function DeviceProfileForm(props: IProps) {
                   <InputNumber min={0} max={15} disabled={props.disabled} />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="RX1 data-rate offset"
                   tooltip="This value must match the RX1 data-rate offset of the device. Please refer to the device documentation."
@@ -456,7 +456,7 @@ function DeviceProfileForm(props: IProps) {
           )}
           {!supportsOtaa && (
             <Row>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="RX2 data-rate"
                   tooltip="This value must match the RX2 data-rate of the device. Please refer to the device documentation."
@@ -471,7 +471,7 @@ function DeviceProfileForm(props: IProps) {
                   <InputNumber min={0} max={15} disabled={props.disabled} />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="RX2 frequency (Hz)"
                   name="abpRx2Freq"
@@ -502,7 +502,7 @@ function DeviceProfileForm(props: IProps) {
           {supportsClassB && (
             <>
               <Row gutter={24}>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item
                     label="Class-B confirmed downlink timeout (seconds)"
                     tooltip="Class-B timeout (in seconds) for confirmed downlink transmissions."
@@ -517,7 +517,7 @@ function DeviceProfileForm(props: IProps) {
                     <InputNumber min={0} />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item
                     label="Class-B ping-slot periodicity"
                     tooltip="This value must match the ping-slot periodicity of the device. Please refer to the device documentation."
@@ -546,7 +546,7 @@ function DeviceProfileForm(props: IProps) {
                 </Col>
               </Row>
               <Row gutter={24}>
-                <Col span={8}>
+                <Col xs={24} sm={8}>
                   <Form.Item
                     label="Class-B ping-slot data-rate"
                     tooltip="This value must match the ping-slot data-rate of the device. Please refer to the device documentation."
@@ -561,7 +561,7 @@ function DeviceProfileForm(props: IProps) {
                     <InputNumber min={0} disabled={props.disabled} />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={8}>
                   <Form.Item
                     label="Class-B ping-slot frequency (Hz)"
                     tooltip="This value must match the ping-slot frequency of the device. Please refer to the device documentation."
@@ -576,7 +576,7 @@ function DeviceProfileForm(props: IProps) {
                     <InputNumber min={0} style={{ width: "200px" }} disabled={props.disabled} />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={8}>
                   <Form.Item
                     label="Class-B downlink only"
                     tooltip="If set and if the device operates as Class-B enabled device, ChirpStack will only send application payloads as ping-slot downlinks"
@@ -649,7 +649,7 @@ function DeviceProfileForm(props: IProps) {
       children: (
         <>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Device is a Relay"
                 name="isRelay"
@@ -659,7 +659,7 @@ function DeviceProfileForm(props: IProps) {
                 <Switch onChange={onIsRelayChange} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               {isRelay && (
                 <Form.Item
                   label="Relay enabled"
@@ -673,7 +673,7 @@ function DeviceProfileForm(props: IProps) {
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Device is a Relay capable end-device"
                 name="isRelayEd"
@@ -683,7 +683,7 @@ function DeviceProfileForm(props: IProps) {
                 <Switch onChange={onIsRelayEdChange} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               {isRelayEd && (
                 <Form.Item
                   label="Only use Relay (end-device)"
@@ -698,7 +698,7 @@ function DeviceProfileForm(props: IProps) {
           </Row>
           {(isRelay || isRelayEd) && (
             <Row gutter={24}>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Form.Item
                   label="Default channel index"
                   name="relayDefaultChannelIndex"
@@ -713,7 +713,7 @@ function DeviceProfileForm(props: IProps) {
                   <InputNumber min={0} max={1} disabled={props.disabled} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Form.Item
                   label="Second channel frequency (Hz)"
                   name="relaySecondChannelFreq"
@@ -723,7 +723,7 @@ function DeviceProfileForm(props: IProps) {
                   <InputNumber min={0} style={{ width: "200px" }} disabled={props.disabled} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Form.Item
                   label="Second channel data-rate"
                   name="relaySecondChannelDr"
@@ -736,7 +736,7 @@ function DeviceProfileForm(props: IProps) {
           )}
           {(isRelay || isRelayEd) && (
             <Row gutter={24}>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="Second channel ACK offset"
                   name="relaySecondChannelAckOffset"
@@ -755,7 +755,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 {isRelay && (
                   <Form.Item
                     label="CAD periodicity"
@@ -785,7 +785,7 @@ function DeviceProfileForm(props: IProps) {
           )}
           {isRelayEd && (
             <Row gutter={24}>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Form.Item
                   label="End-device activation mode"
                   name="relayEdActivationMode"
@@ -807,7 +807,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Form.Item
                   label="Smart enable level"
                   name="relayEdSmartEnableLevel"
@@ -830,7 +830,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Form.Item
                   label="Back-off"
                   name="relayEdBackOff"
@@ -843,7 +843,7 @@ function DeviceProfileForm(props: IProps) {
           )}
           {isRelayEd && (
             <Row gutter={24}>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="End-device uplink limit bucket size"
                   name="relayEdUplinkLimitBucketSize"
@@ -860,7 +860,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   label="End-device uplink limit reload rate"
                   name="relayEdUplinkLimitReloadRate"
@@ -873,7 +873,7 @@ function DeviceProfileForm(props: IProps) {
           )}
           {isRelay && (
             <Row gutter={24}>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Join-request limit bucket size"
                   name="relayJoinReqLimitBucketSize"
@@ -890,7 +890,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Join-request limit reload rate"
                   name="relayJoinReqLimitReloadRate"
@@ -899,7 +899,7 @@ function DeviceProfileForm(props: IProps) {
                   <InputNumber min={0} max={127} disabled={props.disabled} />
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Notify limit bucket size"
                   name="relayNotifyLimitBucketSize"
@@ -916,7 +916,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Notify limit reload rate"
                   name="relayNotifyLimitReloadRate"
@@ -929,7 +929,7 @@ function DeviceProfileForm(props: IProps) {
           )}
           {isRelay && (
             <Row gutter={24}>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Global uplink limit bucket size"
                   name="relayGlobalUplinkLimitBucketSize"
@@ -946,7 +946,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Global uplink limit reload rate"
                   name="relayGlobalUplinkLimitReloadRate"
@@ -955,7 +955,7 @@ function DeviceProfileForm(props: IProps) {
                   <InputNumber min={0} max={127} disabled={props.disabled} />
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Overall limit bucket size"
                   name="relayOverallLimitBucketSize"
@@ -972,7 +972,7 @@ function DeviceProfileForm(props: IProps) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col xs={24} sm={6}>
                 <Form.Item
                   label="Overall limit reload rate"
                   name="relayOverallLimitReloadRate"
@@ -992,7 +992,7 @@ function DeviceProfileForm(props: IProps) {
       children: (
         <>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Clock sync version (TS003)"
                 name={["appLayerParams", "ts003Version"]}
@@ -1008,14 +1008,14 @@ function DeviceProfileForm(props: IProps) {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item label="Clock sync fPort (TS003)" name={["appLayerParams", "ts003FPort"]}>
                 <InputNumber min={0} max={255} disabled={props.disabled} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Fragmented data block transport (TS004)"
                 name={["appLayerParams", "ts004Version"]}
@@ -1031,14 +1031,14 @@ function DeviceProfileForm(props: IProps) {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item label="Fragmented data block transport fPort (TS004)" name={["appLayerParams", "ts004FPort"]}>
                 <InputNumber min={0} max={255} disabled={props.disabled} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Remote multicast setup version (TS005)"
                 name={["appLayerParams", "ts005Version"]}
@@ -1054,7 +1054,7 @@ function DeviceProfileForm(props: IProps) {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item label="Remote multicast setup fPort (TS005)" name={["appLayerParams", "ts005FPort"]}>
                 <InputNumber min={0} max={255} disabled={props.disabled} />
               </Form.Item>
@@ -1072,7 +1072,7 @@ function DeviceProfileForm(props: IProps) {
             <>
               {fields.map(({ key, name, ...restField }) => (
                 <Row gutter={24} key={key}>
-                  <Col span={6}>
+                  <Col xs={24} sm={6}>
                     <Form.Item
                       {...restField}
                       name={[name, 0]}
@@ -1081,7 +1081,7 @@ function DeviceProfileForm(props: IProps) {
                       <Input placeholder="Key" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={16}>
+                  <Col xs={20} sm={16}>
                     <Form.Item
                       {...restField}
                       name={[name, 1]}
@@ -1090,7 +1090,7 @@ function DeviceProfileForm(props: IProps) {
                       <Input placeholder="Value" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={2}>
+                  <Col xs={4} sm={2}>
                     <MinusCircleOutlined onClick={() => remove(name)} />
                   </Col>
                 </Row>
@@ -1148,7 +1148,7 @@ function DeviceProfileForm(props: IProps) {
               <>
                 {fields.map(({ key, name, ...restField }) => (
                   <Row gutter={24} key={key}>
-                    <Col span={6}>
+                    <Col xs={24} sm={6}>
                       <Form.Item
                         {...restField}
                         name={[name, 0]}
@@ -1157,7 +1157,7 @@ function DeviceProfileForm(props: IProps) {
                         <Input placeholder="Measurement key" disabled={props.disabled} />
                       </Form.Item>
                     </Col>
-                    <Col span={6}>
+                    <Col xs={24} sm={6}>
                       <Form.Item
                         {...restField}
                         name={[name, 1, "kind"]}
@@ -1176,12 +1176,12 @@ function DeviceProfileForm(props: IProps) {
                         />
                       </Form.Item>
                     </Col>
-                    <Col span={10}>
+                    <Col xs={20} sm={10}>
                       <Form.Item {...restField} name={[name, 1, "name"]}>
                         <Input placeholder="Measurement name" disabled={props.disabled} />
                       </Form.Item>
                     </Col>
-                    <Col span={2}>
+                    <Col xs={4} sm={2}>
                       <MinusCircleOutlined onClick={() => remove(name)} />
                     </Col>
                   </Row>

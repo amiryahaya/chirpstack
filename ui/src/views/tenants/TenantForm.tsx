@@ -63,7 +63,7 @@ function TenantForm(props: IProps) {
             <Input.TextArea disabled={props.disabled} />
           </Form.Item>
           <Row>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Tenant can have gateways"
                 name="canHaveGateways"
@@ -73,7 +73,7 @@ function TenantForm(props: IProps) {
                 <Switch disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Gateways are private (uplink)"
                 name="privateGatewaysUp"
@@ -83,7 +83,7 @@ function TenantForm(props: IProps) {
                 <Switch disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 label="Gateways are private (downlink)"
                 name="privateGatewaysDown"
@@ -95,7 +95,7 @@ function TenantForm(props: IProps) {
             </Col>
           </Row>
           <Row>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Max. gateway count"
                 name="maxGatewayCount"
@@ -104,7 +104,7 @@ function TenantForm(props: IProps) {
                 <InputNumber min={0} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Max. device count"
                 name="maxDeviceCount"
@@ -127,7 +127,7 @@ function TenantForm(props: IProps) {
             <>
               {fields.map(({ key, name, ...restField }) => (
                 <Row gutter={24} key={key}>
-                  <Col span={6}>
+                  <Col xs={24} sm={6}>
                     <Form.Item
                       {...restField}
                       name={[name, 0]}
@@ -136,7 +136,7 @@ function TenantForm(props: IProps) {
                       <Input placeholder="Key" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={16}>
+                  <Col xs={20} sm={16}>
                     <Form.Item
                       {...restField}
                       name={[name, 1]}
@@ -146,7 +146,7 @@ function TenantForm(props: IProps) {
                     </Form.Item>
                   </Col>
                   {!props.disabled && (
-                    <Col span={2}>
+                    <Col xs={4} sm={2}>
                       <MinusCircleOutlined onClick={() => remove(name)} />
                     </Col>
                   )}
@@ -182,7 +182,7 @@ function TenantForm(props: IProps) {
               <>
                 {fields.map((field, _index) => (
                   <Row gutter={24}>
-                    <Col span={22}>
+                    <Col xs={20} sm={22}>
                       <Form.Item
                         {...field}
                         rules={[
@@ -203,7 +203,7 @@ function TenantForm(props: IProps) {
                       </Form.Item>
                     </Col>
                     {!props.disabled && (
-                      <Col span={2}>
+                      <Col xs={4} sm={2}>
                         <MinusCircleOutlined onClick={() => remove(field.name)} />
                       </Col>
                     )}
@@ -256,13 +256,13 @@ function TenantForm(props: IProps) {
               <>
                 {fields.map(field => (
                   <Row gutter={24} key={field.key}>
-                    <Col span={22}>
+                    <Col xs={20} sm={22}>
                       <Form.Item {...field}>
                         <Input placeholder="email address" disabled={props.disabled} />
                       </Form.Item>
                     </Col>
                     {!props.disabled && (
-                      <Col span={2}>
+                      <Col xs={4} sm={2}>
                         <MinusCircleOutlined onClick={() => remove(field.name)} />
                       </Col>
                     )}

@@ -132,6 +132,7 @@ function DataTable(props: IProps) {
       pagination={pagination || false}
       rowSelection={rowSelection}
       onChange={onChange}
+      scroll={{ x: "max-content" }}
       {...otherProps}
     />
   );

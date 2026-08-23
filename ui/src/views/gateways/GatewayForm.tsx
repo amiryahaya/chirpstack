@@ -110,7 +110,7 @@ function GatewayForm(props: IProps) {
             <Input.TextArea disabled={props.disabled} />
           </Form.Item>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <EuiInput
                 label="Gateway ID (EUI64)"
                 name="gatewayId"
@@ -118,7 +118,7 @@ function GatewayForm(props: IProps) {
                 required
               />
             </Col>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item
                 label="Stats interval (secs)"
                 tooltip="The expected interval in seconds in which the gateway sends its statistics"
@@ -128,7 +128,7 @@ function GatewayForm(props: IProps) {
                 <InputNumber min={0} disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item
                 label="Downlink priority"
                 tooltip="ChirpStack selects the downlink gateway based on SNR, RSSI, uplink history and user-defined priority value."
@@ -181,7 +181,7 @@ function GatewayForm(props: IProps) {
             <>
               {fields.map(({ key, name, ...restField }) => (
                 <Row gutter={24} key={key}>
-                  <Col span={6}>
+                  <Col xs={24} sm={6}>
                     <Form.Item
                       {...restField}
                       name={[name, 0]}
@@ -190,7 +190,7 @@ function GatewayForm(props: IProps) {
                       <Input placeholder="Key" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={16}>
+                  <Col xs={20} sm={16}>
                     <Form.Item
                       {...restField}
                       name={[name, 1]}
@@ -199,7 +199,7 @@ function GatewayForm(props: IProps) {
                       <Input placeholder="Value" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={2}>
+                  <Col xs={4} sm={2}>
                     <MinusCircleOutlined onClick={() => remove(name)} disabled={props.disabled} />
                   </Col>
                 </Row>
@@ -230,12 +230,12 @@ function GatewayForm(props: IProps) {
               <>
                 {fields.map(({ key, name, ...restField }) => (
                   <Row gutter={24} key={key}>
-                    <Col span={6}>
+                    <Col xs={24} sm={6}>
                       <Form.Item {...restField} name={[name, 0]}>
                         <Input placeholder="Key" disabled />
                       </Form.Item>
                     </Col>
-                    <Col span={18}>
+                    <Col xs={24} sm={18}>
                       <Form.Item {...restField} name={[name, 1]}>
                         <Input placeholder="Value" disabled />
                       </Form.Item>

@@ -47,12 +47,12 @@ function UserForm(props: IProps) {
         </Form.Item>
       )}
       <Row>
-        <Col span={12}>
+        <Col xs={12} sm={12}>
           <Form.Item label="Is active" name="isActive" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col xs={12} sm={12}>
           <Form.Item label="Is admin" name="isAdmin" valuePropName="checked">
             <Switch />
           </Form.Item>

@@ -114,10 +114,10 @@ function DeviceForm(props: IProps) {
             <Input.TextArea disabled={props.disabled} />
           </Form.Item>
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <EuiInput label="Device EUI (EUI64)" name="devEui" disabled={props.update} required />
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <EuiInput
                 label="Join EUI (EUI64)"
                 name="joinEui"
@@ -135,7 +135,7 @@ function DeviceForm(props: IProps) {
             disabled={props.disabled}
           />
           <Row gutter={24}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Device is disabled"
                 name="isDisabled"
@@ -145,7 +145,7 @@ function DeviceForm(props: IProps) {
                 <Switch disabled={props.disabled} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="Disable frame-counter validation"
                 name="skipFcntCheck"
@@ -176,7 +176,7 @@ function DeviceForm(props: IProps) {
             <>
               {fields.map(({ key, name, ...restField }) => (
                 <Row gutter={24} key={key}>
-                  <Col span={6}>
+                  <Col xs={24} sm={6}>
                     <Form.Item
                       {...restField}
                       name={[name, 0]}
@@ -185,7 +185,7 @@ function DeviceForm(props: IProps) {
                       <Input placeholder="Key" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={16}>
+                  <Col xs={20} sm={16}>
                     <Form.Item
                       {...restField}
                       name={[name, 1]}
@@ -194,7 +194,7 @@ function DeviceForm(props: IProps) {
                       <Input placeholder="Value" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={2}>{!props.disabled && <MinusCircleOutlined onClick={() => remove(name)} />}</Col>
+                  <Col xs={4} sm={2}>{!props.disabled && <MinusCircleOutlined onClick={() => remove(name)} />}</Col>
                 </Row>
               ))}
               <Form.Item>
@@ -216,7 +216,7 @@ function DeviceForm(props: IProps) {
             <>
               {fields.map(({ key, name, ...restField }) => (
                 <Row gutter={24} key={key}>
-                  <Col span={6}>
+                  <Col xs={24} sm={6}>
                     <Form.Item
                       {...restField}
                       name={[name, 0]}
@@ -225,7 +225,7 @@ function DeviceForm(props: IProps) {
                       <Input placeholder="Key" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={16}>
+                  <Col xs={20} sm={16}>
                     <Form.Item
                       {...restField}
                       name={[name, 1]}
@@ -234,7 +234,7 @@ function DeviceForm(props: IProps) {
                       <Input placeholder="Value" disabled={props.disabled} />
                     </Form.Item>
                   </Col>
-                  <Col span={2}>{!props.disabled && <MinusCircleOutlined onClick={() => remove(name)} />}</Col>
+                  <Col xs={4} sm={2}>{!props.disabled && <MinusCircleOutlined onClick={() => remove(name)} />}</Col>
                 </Row>
               ))}
               <Form.Item>
