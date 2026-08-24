@@ -38,6 +38,26 @@ import Map, { Marker } from "../../components/Map";
 // Fallback map pin icon for devices whose application has no icon set.
 const defaultDeviceIcon = "map-marker";
 
+// Mirrors the never-seen / inactive / active rule used by
+// storage::device::get_active_inactive on the backend (which only computes
+// this as an aggregate, not per-device): a device is considered inactive
+// once it has gone quiet for more than 1.5x its device-profile's uplink
+// interval.
+function deviceActivityStatus(
+  lastSeenAt: Date | undefined,
+  uplinkInterval: number,
+): { label: string; color: string } {
+  if (lastSeenAt === undefined) {
+    return { label: "Never seen", color: presetPalettes.orange.primary! };
+  }
+
+  if (uplinkInterval > 0 && Date.now() - lastSeenAt.getTime() > uplinkInterval * 1000 * 1.5) {
+    return { label: "Inactive", color: presetPalettes.red.primary! };
+  }
+
+  return { label: "Active", color: presetPalettes.green.primary! };
+}
+
 interface NetworkMapProps {
   tenantId: string;
   gateways: GatewayListItem[];
@@ -94,6 +114,11 @@ function NetworkMap(props: NetworkMapProps) {
     );
   }
 
+  const gatewayNames = new globalThis.Map<string, string>();
+  for (const gw of props.gateways) {
+    gatewayNames.set(gw.getGatewayId(), gw.getName());
+  }
+
   for (const item of props.devices) {
     if (!item.hasLatitude() || !item.hasLongitude()) {
       continue;
@@ -103,6 +128,9 @@ function NetworkMap(props: NetworkMapProps) {
     bounds.push(pos);
 
     const icon = props.applicationIcons.get(item.getApplicationId()) || defaultDeviceIcon;
+    const lastSeenAt = item.getLastSeenAt() !== undefined ? item.getLastSeenAt()!.toDate() : undefined;
+    const status = deviceActivityStatus(lastSeenAt, item.getUplinkInterval());
+    const lastSeenGatewayId = item.getLastSeenGatewayId();
 
     markers.push(
       <Marker position={[pos[0], pos[1]]} faIcon={icon} color="blue" key={`dev-${item.getDevEui()}`}>
@@ -114,6 +142,26 @@ function NetworkMap(props: NetworkMapProps) {
           </Link>
           <br />
           {item.getDevEui()}
+          <br />
+          {item.getDeviceProfileName()}
+          <br />
+          <span style={{ color: status.color }}>{status.label}</span>
+          <br />
+          <br />
+          {lastSeenGatewayId !== "" ? (
+            <>
+              Last detected by {gatewayNames.get(lastSeenGatewayId) || lastSeenGatewayId}
+              <br />
+              RSSI: {item.getLastSeenGatewayRssi()} dBm
+              <br />
+            </>
+          ) : (
+            <>
+              No uplinks received yet
+              <br />
+            </>
+          )}
+          {lastSeenAt !== undefined && formatDistanceToNow(lastSeenAt, { addSuffix: true })}
         </Popup>
       </Marker>,
     );

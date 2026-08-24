@@ -252,6 +252,18 @@ message DeviceListItem {
 
   // Longitude (optional).
   optional double longitude = 12;
+
+  // Device-profile uplink interval (in seconds).
+  // Used to derive an active / inactive / never-seen status from
+  // last_seen_at.
+  uint32 uplink_interval = 14;
+
+  // Gateway ID (EUI64) with the strongest RSSI for the most recently
+  // received uplink (empty if the device has not sent an uplink yet).
+  string last_seen_gateway_id = 15;
+
+  // RSSI (dBm) of the reception at last_seen_gateway_id.
+  int32 last_seen_gateway_rssi = 16;
 }
 
 message DeviceKeys {

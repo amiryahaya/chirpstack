@@ -238,6 +238,8 @@ pub struct DeviceListItem {
     pub application_id: fields::Uuid,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    pub uplink_interval: i32,
+    pub device_session: Option<fields::DeviceSession>,
 }
 
 #[derive(Default, Clone)]
@@ -845,6 +847,8 @@ pub async fn list(
             application::id,
             device::latitude,
             device::longitude,
+            device_profile::uplink_interval,
+            device::device_session,
         ))
         .distinct()
         .into_boxed();

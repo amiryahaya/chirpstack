@@ -356,33 +356,53 @@ impl DeviceService for Device {
             total_count: count as u32,
             result: items
                 .iter()
-                .map(|d| api::DeviceListItem {
-                    dev_eui: d.dev_eui.to_string(),
-                    created_at: Some(helpers::datetime_to_prost_timestamp(&d.created_at)),
-                    updated_at: Some(helpers::datetime_to_prost_timestamp(&d.updated_at)),
-                    last_seen_at: d
-                        .last_seen_at
+                .map(|d| {
+                    let (last_seen_gateway_id, last_seen_gateway_rssi) = d
+                        .device_session
                         .as_ref()
-                        .map(helpers::datetime_to_prost_timestamp),
-                    name: d.name.clone(),
-                    description: d.description.clone(),
-                    device_profile_id: d.device_profile_id.to_string(),
-                    device_profile_name: d.device_profile_name.clone(),
-                    device_status: match d.margin.is_some() {
-                        true => Some(api::DeviceStatus {
-                            margin: d.margin.unwrap(),
-                            external_power_source: d.external_power_source,
-                            battery_level: match &d.battery_level {
-                                Some(v) => v.to_f32().unwrap(),
-                                None => -1.0,
-                            },
-                        }),
-                        false => None,
-                    },
-                    tags: d.tags.into_hashmap(),
-                    application_id: d.application_id.to_string(),
-                    latitude: d.latitude,
-                    longitude: d.longitude,
+                        .and_then(|ds| ds.gateway_rx_info_history.last())
+                        .and_then(|h| h.items.iter().max_by_key(|i| i.rssi))
+                        .map(|i| {
+                            (
+                                EUI64::from_slice(&i.gateway_id)
+                                    .map(|e| e.to_string())
+                                    .unwrap_or_default(),
+                                i.rssi,
+                            )
+                        })
+                        .unwrap_or_default();
+
+                    api::DeviceListItem {
+                        dev_eui: d.dev_eui.to_string(),
+                        created_at: Some(helpers::datetime_to_prost_timestamp(&d.created_at)),
+                        updated_at: Some(helpers::datetime_to_prost_timestamp(&d.updated_at)),
+                        last_seen_at: d
+                            .last_seen_at
+                            .as_ref()
+                            .map(helpers::datetime_to_prost_timestamp),
+                        name: d.name.clone(),
+                        description: d.description.clone(),
+                        device_profile_id: d.device_profile_id.to_string(),
+                        device_profile_name: d.device_profile_name.clone(),
+                        device_status: match d.margin.is_some() {
+                            true => Some(api::DeviceStatus {
+                                margin: d.margin.unwrap(),
+                                external_power_source: d.external_power_source,
+                                battery_level: match &d.battery_level {
+                                    Some(v) => v.to_f32().unwrap(),
+                                    None => -1.0,
+                                },
+                            }),
+                            false => None,
+                        },
+                        tags: d.tags.into_hashmap(),
+                        application_id: d.application_id.to_string(),
+                        latitude: d.latitude,
+                        longitude: d.longitude,
+                        uplink_interval: d.uplink_interval as u32,
+                        last_seen_gateway_id,
+                        last_seen_gateway_rssi,
+                    }
                 })
                 .collect(),
         });
@@ -1401,6 +1421,7 @@ pub mod test {
         let dp = device_profile::create(device_profile::DeviceProfile {
             name: "test-dp".into(),
             tenant_id: Some(t.id),
+            uplink_interval: 300,
             ..Default::default()
         })
         .await
@@ -1463,6 +1484,57 @@ pub mod test {
         assert_eq!(1, list_resp.get_ref().total_count);
         assert_eq!(Some(1.234), list_resp.get_ref().result[0].latitude);
         assert_eq!(Some(2.345), list_resp.get_ref().result[0].longitude);
+        assert_eq!(300, list_resp.get_ref().result[0].uplink_interval);
+        assert_eq!("", list_resp.get_ref().result[0].last_seen_gateway_id);
+        assert_eq!(0, list_resp.get_ref().result[0].last_seen_gateway_rssi);
+
+        // record an uplink heard by two gateways, list must report the
+        // strongest-RSSI one
+        let _ = device::partial_update(
+            EUI64::from_str("0102030405060708").unwrap(),
+            &device::DeviceChangeset {
+                device_session: Some(Some(
+                    internal::DeviceSession {
+                        gateway_rx_info_history: vec![internal::GatewayRxInfoHistory {
+                            dr: 0,
+                            items: vec![
+                                internal::GatewayRxInfoHistoryItem {
+                                    gateway_id: vec![8, 8, 8, 8, 8, 8, 8, 8],
+                                    rssi: -80,
+                                    ..Default::default()
+                                },
+                                internal::GatewayRxInfoHistoryItem {
+                                    gateway_id: vec![9, 9, 9, 9, 9, 9, 9, 9],
+                                    rssi: -50,
+                                    ..Default::default()
+                                },
+                            ],
+                        }],
+                        ..Default::default()
+                    }
+                    .into(),
+                )),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let list_req = get_request(
+            &u.id,
+            api::ListDevicesRequest {
+                tenant_id: t.id.to_string(),
+                limit: 10,
+                offset: 0,
+                ..Default::default()
+            },
+        );
+        let list_resp = service.list(list_req).await.unwrap();
+        assert_eq!(
+            "0909090909090909",
+            list_resp.get_ref().result[0].last_seen_gateway_id
+        );
+        assert_eq!(-50, list_resp.get_ref().result[0].last_seen_gateway_rssi);
 
         // update
         let update_req = get_request(
