@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { LatLngTuple, FitBoundsOptions } from "leaflet";
 import L from "leaflet";
 import "leaflet.awesome-markers";
+import "leaflet.heat";
 import type { MarkerProps as LMarkerProps } from "react-leaflet";
 import { useMap } from "react-leaflet";
 import { MapContainer, Marker as LMarker, TileLayer } from "react-leaflet";
@@ -113,6 +114,47 @@ export function Marker(props: MarkerProps) {
       {props.children}
     </LMarker>
   );
+}
+
+export interface HeatmapPoint {
+  lat: number;
+  lng: number;
+  // Normalized signal strength, 0 (weak) - 1 (strong).
+  intensity: number;
+}
+
+// Red (weak) -> yellow -> green (strong), matching the color convention
+// already used elsewhere in the UI (e.g. active/inactive status).
+const heatmapGradient: L.ColorGradientConfig = {
+  0.0: "#f5222d",
+  0.5: "#faad14",
+  1.0: "#52c41a",
+};
+
+interface HeatmapProps {
+  points: HeatmapPoint[];
+}
+
+export function Heatmap(props: HeatmapProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (map === undefined) {
+      return;
+    }
+
+    const layer = L.heatLayer(
+      props.points.map(p => [p.lat, p.lng, p.intensity]),
+      { gradient: heatmapGradient, radius: 25, blur: 20, maxZoom: 17 },
+    );
+    layer.addTo(map);
+
+    return () => {
+      layer.remove();
+    };
+  }, [map, props.points]);
+
+  return null;
 }
 
 export default Map;

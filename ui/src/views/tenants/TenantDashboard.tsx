@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { presetPalettes } from "@ant-design/colors";
-import { Card, Col, Row, Space, Empty } from "antd";
+import { Card, Col, Row, Space, Empty, Radio } from "antd";
+import type { RadioChangeEvent } from "antd";
 
 import { formatDistanceToNow } from "date-fns";
 import type { LatLngTuple, PointTuple } from "leaflet";
@@ -32,8 +33,8 @@ import InternalStore from "../../stores/InternalStore";
 import GatewayStore from "../../stores/GatewayStore";
 import DeviceStore from "../../stores/DeviceStore";
 import ApplicationStore from "../../stores/ApplicationStore";
-import type { MarkerColor } from "../../components/Map";
-import Map, { Marker } from "../../components/Map";
+import type { MarkerColor, HeatmapPoint } from "../../components/Map";
+import Map, { Marker, Heatmap } from "../../components/Map";
 
 // Fallback map pin icon for devices whose application has no icon set.
 const defaultDeviceIcon = "map-marker";
@@ -58,8 +59,21 @@ function deviceActivityStatus(
   return { label: "Active", color: presetPalettes.green.primary! };
 }
 
+// Typical LoRa receive-sensitivity range for the sub-GHz ISM bands: weak
+// (near the noise floor) to strong (close range / clear line of sight).
+const rssiWeak = -130;
+const rssiStrong = -60;
+
+function normalizeRssi(rssi: number): number {
+  const clamped = Math.min(rssiStrong, Math.max(rssiWeak, rssi));
+  return (clamped - rssiWeak) / (rssiStrong - rssiWeak);
+}
+
+type MapMode = "markers" | "coverage";
+
 interface NetworkMapProps {
   tenantId: string;
+  mode: MapMode;
   gateways: GatewayListItem[];
   devices: DeviceListItem[];
   applicationIcons: globalThis.Map<string, string>;
@@ -78,9 +92,10 @@ function NetworkMap(props: NetworkMapProps) {
 
   const bounds: LatLngTuple[] = [];
   const markers: ReactElement[] = [];
+  const heatPoints: HeatmapPoint[] = [];
 
   for (const item of props.gateways) {
-    if (item.getLocation() === undefined) {
+    if (item.getLocation() === undefined || props.mode !== "markers") {
       continue;
     }
 
@@ -127,10 +142,22 @@ function NetworkMap(props: NetworkMapProps) {
     const pos: LatLngTuple = [item.getLatitude(), item.getLongitude()];
     bounds.push(pos);
 
+    const lastSeenGatewayId = item.getLastSeenGatewayId();
+
+    if (props.mode === "coverage") {
+      if (lastSeenGatewayId !== "") {
+        heatPoints.push({
+          lat: pos[0],
+          lng: pos[1],
+          intensity: normalizeRssi(item.getLastSeenGatewayRssi()),
+        });
+      }
+      continue;
+    }
+
     const icon = props.applicationIcons.get(item.getApplicationId()) || defaultDeviceIcon;
     const lastSeenAt = item.getLastSeenAt() !== undefined ? item.getLastSeenAt()!.toDate() : undefined;
     const status = deviceActivityStatus(lastSeenAt, item.getUplinkInterval());
-    const lastSeenGatewayId = item.getLastSeenGatewayId();
 
     markers.push(
       <Marker position={[pos[0], pos[1]]} faIcon={icon} color="blue" key={`dev-${item.getDevEui()}`}>
@@ -167,9 +194,13 @@ function NetworkMap(props: NetworkMapProps) {
     );
   }
 
+  if (props.mode === "coverage" && heatPoints.length === 0) {
+    return <Empty description="No signal readings yet" />;
+  }
+
   return (
     <Map height={500} bounds={bounds} boundsOptions={boundsOptions}>
-      {markers}
+      {props.mode === "coverage" ? <Heatmap points={heatPoints} /> : markers}
     </Map>
   );
 }
@@ -326,6 +357,7 @@ function TenantDashboard({ tenant }: { tenant: Tenant }) {
   const [applicationIcons, setApplicationIcons] = useState<globalThis.Map<string, string>>(new globalThis.Map());
   const [gatewaysSummary, setGatewaysSummary] = useState<GetGatewaysSummaryResponse | undefined>(undefined);
   const [devicesSummary, setDevicesSummary] = useState<GetDevicesSummaryResponse | undefined>(undefined);
+  const [mapMode, setMapMode] = useState<MapMode>("markers");
 
   useEffect(() => {
     {
@@ -402,9 +434,22 @@ function TenantDashboard({ tenant }: { tenant: Tenant }) {
           </Card>
         </Col>
       </Row>
-      <Card title="Map">
+      <Card
+        title="Map"
+        extra={
+          <Radio.Group
+            value={mapMode}
+            onChange={(e: RadioChangeEvent) => setMapMode(e.target.value as MapMode)}
+            size="small"
+          >
+            <Radio.Button value="markers">Markers</Radio.Button>
+            <Radio.Button value="coverage">Coverage</Radio.Button>
+          </Radio.Group>
+        }
+      >
         <NetworkMap
           tenantId={tenant.getId()}
+          mode={mapMode}
           gateways={gatewayItems}
           devices={deviceItems}
           applicationIcons={applicationIcons}
