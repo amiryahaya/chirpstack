@@ -39,6 +39,9 @@ import Map, { Marker, Heatmap } from "../../components/Map";
 // Fallback map pin icon for devices whose application has no icon set.
 const defaultDeviceIcon = "map-marker";
 
+// Fallback map pin icon for gateways with no icon set.
+const defaultGatewayIcon = "wifi";
+
 // Mirrors the never-seen / inactive / active rule used by
 // storage::device::get_active_inactive on the backend (which only computes
 // this as an aggregate, not per-device): a device is considered inactive
@@ -116,7 +119,12 @@ function NetworkMap(props: NetworkMapProps) {
     }
 
     markers.push(
-      <Marker position={[pos[0], pos[1]]} faIcon="wifi" color={color} key={`gw-${item.getGatewayId()}`}>
+      <Marker
+        position={[pos[0], pos[1]]}
+        faIcon={item.getIcon() || defaultGatewayIcon}
+        color={color}
+        key={`gw-${item.getGatewayId()}`}
+      >
         <Popup>
           <Link to={`/tenants/${item.getTenantId()}/gateways/${item.getGatewayId()}`}>{item.getName()}</Link>
           <br />

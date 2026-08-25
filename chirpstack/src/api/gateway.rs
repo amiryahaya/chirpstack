@@ -72,6 +72,7 @@ impl GatewayService for Gateway {
             } as i16,
             alert_enabled: req_gw.alert_enabled.unwrap_or(true),
             alert_state: 0,
+            icon: req_gw.icon.clone(),
             ..Default::default()
         };
 
@@ -117,6 +118,7 @@ impl GatewayService for Gateway {
                 stats_interval: gw.stats_interval_secs as u32,
                 downlink_priority: gw.downlink_priority as u32,
                 alert_enabled: Some(gw.alert_enabled),
+                icon: gw.icon,
             }),
             created_at: Some(helpers::datetime_to_prost_timestamp(&gw.created_at)),
             updated_at: Some(helpers::datetime_to_prost_timestamp(&gw.updated_at)),
@@ -166,6 +168,7 @@ impl GatewayService for Gateway {
             tags: fields::KeyValue::new(req_gw.tags.clone()),
             stats_interval_secs: req_gw.stats_interval as i32,
             downlink_priority: req_gw.downlink_priority as i16,
+            icon: req_gw.icon.clone(),
             ..Default::default()
         })
         .await
@@ -291,6 +294,7 @@ impl GatewayService for Gateway {
                     }
                     .into(),
                     downlink_priority: gw.downlink_priority as u32,
+                    icon: gw.icon.clone(),
                 })
                 .collect(),
         });
@@ -1037,6 +1041,7 @@ pub mod test {
                     ..Default::default()
                 }),
                 downlink_priority: 10,
+                icon: "wifi".into(),
                 ..Default::default()
             }),
         };
@@ -1068,6 +1073,7 @@ pub mod test {
                 }),
                 downlink_priority: 10,
                 alert_enabled: Some(true),
+                icon: "wifi".into(),
                 ..Default::default()
             }),
             get_resp.get_ref().gateway
@@ -1086,6 +1092,7 @@ pub mod test {
                     ..Default::default()
                 }),
                 downlink_priority: 11,
+                icon: "industry".into(),
                 ..Default::default()
             }),
         };
@@ -1117,6 +1124,7 @@ pub mod test {
                 }),
                 downlink_priority: 11,
                 alert_enabled: Some(true),
+                icon: "industry".into(),
                 ..Default::default()
             }),
             get_resp.get_ref().gateway
@@ -1136,6 +1144,7 @@ pub mod test {
                 }),
                 downlink_priority: 11,
                 alert_enabled: Some(false),
+                icon: "industry".into(),
                 ..Default::default()
             }),
         };
@@ -1173,6 +1182,7 @@ pub mod test {
                 }),
                 downlink_priority: 11,
                 alert_enabled: None,
+                icon: "industry".into(),
                 ..Default::default()
             }),
         };
@@ -1211,6 +1221,7 @@ pub mod test {
         let list_resp = service.list(list_req).await.unwrap();
         assert_eq!(1, list_resp.get_ref().total_count);
         assert_eq!(1, list_resp.get_ref().result.len());
+        assert_eq!("industry", list_resp.get_ref().result[0].icon);
 
         // delete
         let del_req = api::DeleteGatewayRequest {

@@ -135,6 +135,9 @@ message Gateway {
   // Enable inactivity alert emails for this gateway.
   // When not set by the client, defaults to true.
   optional bool alert_enabled = 10;
+
+  // Map pin icon.
+  string icon = 11;
 }
 
 message GatewayListItem {
@@ -175,6 +178,9 @@ message GatewayListItem {
   // and an user-defined downlink priority which can be used as a positive or
   // negative bias in the downlink gateway selection.
   uint32 downlink_priority = 11;
+
+  // Map pin icon.
+  string icon = 12;
 }
 
 message CreateGatewayRequest {

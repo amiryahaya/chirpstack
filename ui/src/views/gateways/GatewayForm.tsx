@@ -10,6 +10,7 @@ import { Gateway } from "@chirpstack/chirpstack-api-grpc-web/api/gateway_pb";
 import { onFinishFailed } from "../helpers";
 import EuiInput from "../../components/EuiInput";
 import Map, { Marker } from "../../components/Map";
+import MapPinIconPicker from "../../components/MapPinIconPicker";
 import LocationStore from "../../stores/LocationStore";
 import type { DragEndEvent } from "leaflet";
 
@@ -79,6 +80,7 @@ function GatewayForm(props: IProps) {
     gw.setLocation(loc);
     gw.setDownlinkPriority(v.downlinkPriority);
     gw.setAlertEnabled(v.alertEnabled ?? true);
+    gw.setIcon(v.icon || "");
 
     // tags
     for (const elm of v.tagsMap) {
@@ -120,6 +122,7 @@ function GatewayForm(props: IProps) {
           <Form.Item label="Description" name="description">
             <Input.TextArea disabled={props.disabled} />
           </Form.Item>
+          <MapPinIconPicker tooltip="Used to render this gateway on a map." disabled={props.disabled} />
           <Row gutter={24}>
             <Col xs={24} sm={12}>
               <EuiInput

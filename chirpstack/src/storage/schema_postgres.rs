@@ -325,6 +325,7 @@ diesel::table! {
         downlink_priority -> Int2,
         alert_enabled -> Bool,
         alert_state -> Int2,
+        icon -> Text,
     }
 }
 

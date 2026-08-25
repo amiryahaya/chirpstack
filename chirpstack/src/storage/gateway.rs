@@ -34,6 +34,7 @@ pub struct Gateway {
     pub downlink_priority: i16,
     pub alert_enabled: bool,
     pub alert_state: i16,
+    pub icon: String,
 }
 
 impl Gateway {
@@ -72,6 +73,7 @@ impl Default for Gateway {
             downlink_priority: 10,
             alert_enabled: true,
             alert_state: 0,
+            icon: "".into(),
         }
     }
 }
@@ -102,6 +104,7 @@ pub struct GatewayListItem {
     pub properties: fields::KeyValue,
     pub stats_interval_secs: i32,
     pub downlink_priority: i16,
+    pub icon: String,
 }
 
 #[derive(Queryable, PartialEq, Debug)]
@@ -272,6 +275,7 @@ pub async fn update(gw: Gateway) -> Result<Gateway, Error> {
             gateway::stats_interval_secs.eq(&gw.stats_interval_secs),
             gateway::tags.eq(&gw.tags),
             gateway::downlink_priority.eq(&gw.downlink_priority),
+            gateway::icon.eq(&gw.icon),
         ))
         .get_result(&mut get_async_db_conn().await?)
         .await
@@ -411,6 +415,7 @@ pub async fn list(
             gateway::properties,
             gateway::stats_interval_secs,
             gateway::downlink_priority,
+            gateway::icon,
         ))
         .distinct()
         .into_boxed();
