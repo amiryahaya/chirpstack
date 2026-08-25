@@ -95,6 +95,17 @@ function GatewayForm(props: IProps) {
     setLocationFields(loc.lat, loc.lng);
   };
 
+  const onValuesChange = (changedValues: Partial<Gateway.AsObject>) => {
+    if (changedValues.location) {
+      if (typeof changedValues.location.latitude === "number") {
+        setLatValue(changedValues.location.latitude);
+      }
+      if (typeof changedValues.location.longitude === "number") {
+        setLonValue(changedValues.location.longitude);
+      }
+    }
+  };
+
   const location: [number, number] = [latValue, lonValue];
 
   const tabItems: TabsProps["items"] = [
@@ -147,13 +158,19 @@ function GatewayForm(props: IProps) {
           >
             <Switch disabled={props.disabled} />
           </Form.Item>
+          <Row gutter={24}>
+            <Col xs={24} sm={12}>
+              <Form.Item label="Latitude" name={["location", "latitude"]} tooltip="The gateway's GPS latitude.">
+                <InputNumber min={-90} max={90} style={{ width: "100%" }} disabled={props.disabled} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item label="Longitude" name={["location", "longitude"]} tooltip="The gateway's GPS longitude.">
+                <InputNumber min={-180} max={180} style={{ width: "100%" }} disabled={props.disabled} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item label="Location">
-            <Form.Item name={["location", "latitude"]} noStyle>
-              <Input hidden />
-            </Form.Item>
-            <Form.Item name={["location", "longitude"]} noStyle>
-              <Input hidden />
-            </Form.Item>
             <Space orientation="vertical" style={{ width: "100%" }}>
               <Map height={500} center={location}>
                 <Marker
@@ -261,6 +278,7 @@ function GatewayForm(props: IProps) {
       initialValues={formInitialValues}
       onFinish={onFinish}
       onFinishFailed={onFinishFailed}
+      onValuesChange={onValuesChange}
       form={form}
     >
       <Tabs items={tabItems} />
