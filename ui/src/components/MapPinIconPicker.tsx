@@ -28,6 +28,7 @@ import {
   faMapMarker,
   faWifi,
   faTowerCell,
+  faGauge,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
@@ -62,6 +63,7 @@ export const iconOptions: { value: string; icon: IconDefinition }[] = [
   { value: "cube", icon: faCube },
   { value: "wifi", icon: faWifi },
   { value: "tower-cell", icon: faTowerCell },
+  { value: "gauge", icon: faGauge },
 ];
 
 interface IProps {
