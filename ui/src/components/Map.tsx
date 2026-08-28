@@ -66,9 +66,14 @@ function Map(props: PropsWithChildren<IProps>) {
     return null;
   }
 
+  // Leaflet can't compute a bounding box from zero points (flyToBounds / fitBounds throw
+  // trying to read the corner of an unset LatLngBounds), so an empty array must be treated
+  // the same as "no bounds" rather than passed through.
+  const bounds = props.bounds !== undefined && props.bounds.length > 0 ? props.bounds : undefined;
+
   return (
     <MapContainer
-      bounds={props.bounds}
+      bounds={bounds}
       boundsOptions={props.boundsOptions}
       center={props.center}
       zoom={13}
@@ -77,7 +82,7 @@ function Map(props: PropsWithChildren<IProps>) {
     >
       <TileLayer attribution={attribution} url={tileserver} />
       {props.children}
-      <MapControl bounds={props.bounds} boundsOptions={props.boundsOptions} center={props.center} />
+      <MapControl bounds={bounds} boundsOptions={props.boundsOptions} center={props.center} />
     </MapContainer>
   );
 }

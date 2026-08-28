@@ -98,11 +98,19 @@ function NetworkMap(props: NetworkMapProps) {
   const heatPoints: HeatmapPoint[] = [];
 
   for (const item of props.gateways) {
-    if (item.getLocation() === undefined || props.mode !== "markers") {
+    if (props.mode !== "markers") {
       continue;
     }
 
-    const pos: LatLngTuple = [item.getLocation()!.getLatitude(), item.getLocation()!.getLongitude()];
+    const loc = item.getLocation();
+    // Gateways always carry a Location in the API response (default 0, 0
+    // when never set), so an unset location can't be detected via
+    // getLocation() === undefined -- only via the coordinates themselves.
+    if (loc === undefined || (loc.getLatitude() === 0 && loc.getLongitude() === 0)) {
+      continue;
+    }
+
+    const pos: LatLngTuple = [loc.getLatitude(), loc.getLongitude()];
     bounds.push(pos);
 
     let color: MarkerColor = "orange";
@@ -204,6 +212,10 @@ function NetworkMap(props: NetworkMapProps) {
 
   if (props.mode === "coverage" && heatPoints.length === 0) {
     return <Empty description="No signal readings yet" />;
+  }
+
+  if (props.mode === "markers" && bounds.length === 0) {
+    return <Empty description="No gateways or devices with a known location" />;
   }
 
   return (
