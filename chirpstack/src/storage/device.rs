@@ -1066,6 +1066,8 @@ pub struct DeviceAlertCandidate {
     pub tenant_id: fields::Uuid,
     #[diesel(sql_type = diesel::sql_types::Text)]
     pub name: String,
+    #[diesel(sql_type = diesel::sql_types::Text)]
+    pub application_name: String,
     #[diesel(sql_type = diesel::sql_types::SmallInt)]
     pub alert_state: i16,
     #[diesel(sql_type = diesel::sql_types::Bool)]
@@ -1080,6 +1082,7 @@ pub async fn get_alert_candidates() -> Result<Vec<DeviceAlertCandidate>, Error> 
             d.dev_eui,
             a.tenant_id,
             d.name,
+            a.name as application_name,
             d.alert_state,
             (now() - d.last_seen_at) > (make_interval(secs => dp.uplink_interval) * 1.5) as is_inactive
         from device d
@@ -1101,6 +1104,7 @@ pub async fn get_alert_candidates() -> Result<Vec<DeviceAlertCandidate>, Error> 
             d.dev_eui,
             a.tenant_id,
             d.name,
+            a.name as application_name,
             d.alert_state,
             (unixepoch('now') - unixepoch(d.last_seen_at)) > (dp.uplink_interval * 1.5) as is_inactive
         from device d
@@ -2197,5 +2201,6 @@ pub mod test {
             .unwrap();
         assert!(stale_candidate.is_inactive);
         assert_eq!(0, stale_candidate.alert_state);
+        assert_eq!("test application", stale_candidate.application_name);
     }
 }

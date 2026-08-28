@@ -21,25 +21,38 @@ impl EntityKind {
     }
 }
 
+// entity_suffix returns the "(application 'X')" clause for a device, or an empty string for a
+// gateway (which has no application).
+fn entity_suffix(application_name: Option<&str>) -> String {
+    match application_name {
+        Some(name) => format!(" (application '{}')", name),
+        None => String::new(),
+    }
+}
+
 pub fn subject_for(
     tenant_name: &str,
     kind: EntityKind,
     entity_name: &str,
+    application_name: Option<&str>,
     went_inactive: bool,
 ) -> String {
+    let suffix = entity_suffix(application_name);
     if went_inactive {
         format!(
-            "[{}] {} '{}' went inactive",
+            "[{}] {} '{}'{} went inactive",
             tenant_name,
             kind.label(),
-            entity_name
+            entity_name,
+            suffix
         )
     } else {
         format!(
-            "[{}] {} '{}' is active again",
+            "[{}] {} '{}'{} is active again",
             tenant_name,
             kind.label(),
-            entity_name
+            entity_name,
+            suffix
         )
     }
 }
@@ -48,20 +61,24 @@ pub fn body_for(
     tenant_name: &str,
     kind: EntityKind,
     entity_name: &str,
+    application_name: Option<&str>,
     went_inactive: bool,
 ) -> String {
+    let suffix = entity_suffix(application_name);
     if went_inactive {
         format!(
-            "{} '{}' in tenant '{}' has gone inactive.",
+            "{} '{}'{} in tenant '{}' has gone inactive.",
             kind.label(),
             entity_name,
+            suffix,
             tenant_name
         )
     } else {
         format!(
-            "{} '{}' in tenant '{}' is active again.",
+            "{} '{}'{} in tenant '{}' is active again.",
             kind.label(),
             entity_name,
+            suffix,
             tenant_name
         )
     }
@@ -125,13 +142,26 @@ pub async fn send_transition_email(
     tenant: &Tenant,
     kind: EntityKind,
     entity_name: &str,
+    application_name: Option<&str>,
     went_inactive: bool,
 ) -> bool {
     let mut any_sent = false;
 
     for addr in deliverable_addresses(tenant) {
-        let subject = subject_for(&tenant.name, kind, entity_name, went_inactive);
-        let body = body_for(&tenant.name, kind, entity_name, went_inactive);
+        let subject = subject_for(
+            &tenant.name,
+            kind,
+            entity_name,
+            application_name,
+            went_inactive,
+        );
+        let body = body_for(
+            &tenant.name,
+            kind,
+            entity_name,
+            application_name,
+            went_inactive,
+        );
 
         match build_message(tenant, addr, subject, body) {
             Ok(msg) => match send(tenant, msg).await {
@@ -174,11 +204,17 @@ mod test {
     fn test_subject_for() {
         assert_eq!(
             "[Acme] Gateway 'gw-01' went inactive",
-            subject_for("Acme", EntityKind::Gateway, "gw-01", true)
+            subject_for("Acme", EntityKind::Gateway, "gw-01", None, true)
         );
         assert_eq!(
-            "[Acme] Device 'sensor-1' is active again",
-            subject_for("Acme", EntityKind::Device, "sensor-1", false)
+            "[Acme] Device 'sensor-1' (application 'tracker-app') is active again",
+            subject_for(
+                "Acme",
+                EntityKind::Device,
+                "sensor-1",
+                Some("tracker-app"),
+                false
+            )
         );
     }
 
@@ -186,11 +222,17 @@ mod test {
     fn test_body_for() {
         assert_eq!(
             "Gateway 'gw-01' in tenant 'Acme' has gone inactive.",
-            body_for("Acme", EntityKind::Gateway, "gw-01", true)
+            body_for("Acme", EntityKind::Gateway, "gw-01", None, true)
         );
         assert_eq!(
-            "Device 'sensor-1' in tenant 'Acme' is active again.",
-            body_for("Acme", EntityKind::Device, "sensor-1", false)
+            "Device 'sensor-1' (application 'tracker-app') in tenant 'Acme' is active again.",
+            body_for(
+                "Acme",
+                EntityKind::Device,
+                "sensor-1",
+                Some("tracker-app"),
+                false
+            )
         );
     }
 

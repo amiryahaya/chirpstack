@@ -56,6 +56,7 @@ pub async fn scan_gateways() -> anyhow::Result<()> {
                             &t,
                             EntityKind::Gateway,
                             &c.name,
+                            None,
                             went_inactive,
                         )
                         .await;
@@ -117,6 +118,7 @@ pub async fn scan_devices() -> anyhow::Result<()> {
                             &t,
                             EntityKind::Device,
                             &c.name,
+                            Some(&c.application_name),
                             went_inactive,
                         )
                         .await;
