@@ -9,6 +9,54 @@ cloud providers, databases and services commonly used for handling device data.
 ChirpStack provides a gRPC based API that can be used to integrate or extend
 ChirpStack.
 
+## Fork-specific features
+
+This fork extends upstream ChirpStack with the following, on top of the
+standard feature set:
+
+### Inactivity alerts
+
+* Per-tenant SMTP configuration (host, port, TLS, credentials, from-address,
+  and one or more alert recipient addresses), with a test-email action.
+* Per-gateway and per-device "alert enabled" toggle.
+* A background reaper loop that periodically scans for gateways/devices that
+  have gone inactive (or recovered) and sends a transition email — subject
+  and body include the tenant name, and for devices, the owning application
+  name (e.g. `Device 'X' (application 'Y') in tenant 'Z' has gone inactive.`).
+* An audit log (`alert_event`) recording every state transition and whether
+  the notification email was actually delivered.
+
+### Map improvements
+
+* Per-application and per-gateway custom map pin icons (including added
+  icon options such as `tower-cell` and `gauge`).
+* Gateways and devices without a real (non-zero) location are no longer
+  plotted on the map — previously an unset location defaulted to `(0, 0)`
+  and rendered a marker at Null Island.
+* The tenant map now plots devices (not just gateways), with a popup
+  showing device status, device profile, and the last gateway/RSSI that
+  detected it.
+* A "Coverage" mode: an empirical signal-coverage heatmap derived from
+  devices' last-seen-gateway RSSI, toggleable alongside the normal markers
+  view.
+* Plain latitude/longitude number inputs on the gateway form, alongside the
+  existing draggable-map picker.
+* Fixed: gateway stats updates no longer silently overwrite a manually-set
+  gateway location.
+* Fixed: the map no longer crashes when nothing on it has a known location
+  (previously threw trying to compute bounds from zero points).
+
+### Device management
+
+* Latitude/longitude fields on the device create/edit form.
+* Search by name or DevEUI on the device list page.
+
+### Responsive UI
+
+* The app shell, tables/forms, dashboards, region details, device
+  activation, integration pickers, and the remaining forms (tenant-user,
+  multicast group, relay, FUOTA) all adapt to narrow/mobile viewports.
+
 ## Documentation and binaries
 
 Please refer to the [ChirpStack](https://www.chirpstack.io/) website for
