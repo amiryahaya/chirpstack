@@ -1000,7 +1000,10 @@ pub async fn list(
 }
 
 #[cfg(feature = "postgres")]
-pub async fn get_active_inactive(tenant_id: &Option<Uuid>) -> Result<DevicesActiveInactive, Error> {
+pub async fn get_active_inactive(
+    tenant_id: &Option<Uuid>,
+    application_id: &Option<Uuid>,
+) -> Result<DevicesActiveInactive, Error> {
     diesel::sql_query(r#"
         with device_active_inactive as (
             select
@@ -1013,7 +1016,8 @@ pub async fn get_active_inactive(tenant_id: &Option<Uuid>) -> Result<DevicesActi
             inner join application a
                 on d.application_id = a.id
             where
-                $1 is null or a.tenant_id = $1
+                ($1 is null or a.tenant_id = $1)
+                and ($2 is null or d.application_id = $2)
         )
         select
             coalesce(sum(case when last_seen_at is null then 1 end), 0) as never_seen_count,
@@ -1023,12 +1027,16 @@ pub async fn get_active_inactive(tenant_id: &Option<Uuid>) -> Result<DevicesActi
             device_active_inactive
     "#)
             .bind::<diesel::sql_types::Nullable<fields::sql_types::Uuid>, _>(tenant_id.map(fields::Uuid::from))
+            .bind::<diesel::sql_types::Nullable<fields::sql_types::Uuid>, _>(application_id.map(fields::Uuid::from))
     .get_result(&mut get_async_db_conn().await?).await
     .map_err(|e| Error::from_diesel(e, "".into()))
 }
 
 #[cfg(feature = "sqlite")]
-pub async fn get_active_inactive(tenant_id: &Option<Uuid>) -> Result<DevicesActiveInactive, Error> {
+pub async fn get_active_inactive(
+    tenant_id: &Option<Uuid>,
+    application_id: &Option<Uuid>,
+) -> Result<DevicesActiveInactive, Error> {
     diesel::sql_query(
         r#"
         with device_active_inactive as (
@@ -1043,7 +1051,8 @@ pub async fn get_active_inactive(tenant_id: &Option<Uuid>) -> Result<DevicesActi
             inner join application a
                 on d.application_id = a.id
             where
-                ?1 is null or a.tenant_id = ?1
+                (?1 is null or a.tenant_id = ?1)
+                and (?2 is null or d.application_id = ?2)
         )
         select
             coalesce(sum(case when last_seen_at is null then 1 end), 0) as never_seen_count,
@@ -1055,6 +1064,9 @@ pub async fn get_active_inactive(tenant_id: &Option<Uuid>) -> Result<DevicesActi
     )
     .bind::<diesel::sql_types::Nullable<fields::sql_types::Uuid>, _>(
         tenant_id.map(fields::Uuid::from),
+    )
+    .bind::<diesel::sql_types::Nullable<fields::sql_types::Uuid>, _>(
+        application_id.map(fields::Uuid::from),
     )
     .get_result(&mut get_async_db_conn().await?)
     .await
@@ -1121,7 +1133,10 @@ pub async fn get_alert_candidates() -> Result<Vec<DeviceAlertCandidate>, Error> 
     .map_err(|e| Error::from_diesel(e, "".into()))
 }
 
-pub async fn get_data_rates(tenant_id: &Option<Uuid>) -> Result<Vec<DevicesDataRate>, Error> {
+pub async fn get_data_rates(
+    tenant_id: &Option<Uuid>,
+    application_id: &Option<Uuid>,
+) -> Result<Vec<DevicesDataRate>, Error> {
     let mut q = device::table
         .inner_join(application::table)
         .select((
@@ -1134,6 +1149,10 @@ pub async fn get_data_rates(tenant_id: &Option<Uuid>) -> Result<Vec<DevicesDataR
 
     if let Some(id) = &tenant_id {
         q = q.filter(application::tenant_id.eq(fields::Uuid::from(id)));
+    }
+
+    if let Some(id) = &application_id {
+        q = q.filter(device::application_id.eq(fields::Uuid::from(id)));
     }
 
     q.load(&mut get_async_db_conn().await?)
@@ -2205,5 +2224,73 @@ pub mod test {
         assert!(stale_candidate.is_inactive);
         assert_eq!(0, stale_candidate.alert_state);
         assert_eq!("test application", stale_candidate.application_name);
+    }
+
+    #[tokio::test]
+    async fn test_get_active_inactive() {
+        let _guard = test::prepare().await;
+        let dp = storage::device_profile::test::create_device_profile(None).await;
+        let tenant_id: Uuid = dp.tenant_id.unwrap().into();
+
+        // Two applications in the same tenant, so a tenant_id-scoped summary
+        // must combine both, while an application_id-scoped summary must
+        // only see the one it names.
+        let app_1 = storage::application::test::create_application(Some(tenant_id.into())).await;
+        let app_2 = storage::application::test::create_application(Some(tenant_id.into())).await;
+
+        // app_1: one active, one never-seen.
+        create(Device {
+            name: "app1-active".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 1]),
+            application_id: app_1.id,
+            device_profile_id: dp.id.into(),
+            last_seen_at: Some(Utc::now()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        create(Device {
+            name: "app1-never-seen".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 2]),
+            application_id: app_1.id,
+            device_profile_id: dp.id.into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        // app_2: one inactive (stale past 60 * 1.5 = 90 seconds).
+        create(Device {
+            name: "app2-inactive".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 3]),
+            application_id: app_2.id,
+            device_profile_id: dp.id.into(),
+            last_seen_at: Some(Utc::now() - chrono::Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        // tenant-wide: combines both applications.
+        let tenant_summary = get_active_inactive(&Some(tenant_id), &None).await.unwrap();
+        assert_eq!(1, tenant_summary.active_count);
+        assert_eq!(1, tenant_summary.inactive_count);
+        assert_eq!(1, tenant_summary.never_seen_count);
+
+        // app_1-only.
+        let app_1_summary = get_active_inactive(&None, &Some(app_1.id.into()))
+            .await
+            .unwrap();
+        assert_eq!(1, app_1_summary.active_count);
+        assert_eq!(0, app_1_summary.inactive_count);
+        assert_eq!(1, app_1_summary.never_seen_count);
+
+        // app_2-only.
+        let app_2_summary = get_active_inactive(&None, &Some(app_2.id.into()))
+            .await
+            .unwrap();
+        assert_eq!(0, app_2_summary.active_count);
+        assert_eq!(1, app_2_summary.inactive_count);
+        assert_eq!(0, app_2_summary.never_seen_count);
     }
 }

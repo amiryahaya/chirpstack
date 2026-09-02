@@ -322,6 +322,11 @@ message OAuth2LoginResponse {
 message GetDevicesSummaryRequest {
   // Tenant ID (UUID).
   string tenant_id = 1;
+
+  // Application ID (UUID, optional).
+  // When set, further narrows the summary to a single application (within
+  // the given tenant_id, or globally if tenant_id is left empty).
+  string application_id = 2;
 }
 
 message GetDevicesSummaryResponse {

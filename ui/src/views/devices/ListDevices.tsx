@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 
 import { format } from "date-fns";
-import { Space, Button, Dropdown, Modal, Select, Tag, Popover, Typography, Input } from "antd";
+import { Space, Button, Dropdown, Modal, Select, Tag, Popover, Typography, Input, Row, Col, Card, Statistic } from "antd";
 import type { SelectProps } from "antd/lib";
 import type { ColumnsType } from "antd/es/table";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -45,6 +45,8 @@ import {
   ListFuotaDeploymentsRequest,
   AddDevicesToFuotaDeploymentRequest,
 } from "@chirpstack/chirpstack-api-grpc-web/api/fuota_pb";
+import type { GetDevicesSummaryResponse } from "@chirpstack/chirpstack-api-grpc-web/api/internal_pb";
+import { GetDevicesSummaryRequest } from "@chirpstack/chirpstack-api-grpc-web/api/internal_pb";
 
 import type { GetPageCallbackFunc } from "../../components/DataTable";
 import DataTable from "../../components/DataTable";
@@ -53,6 +55,7 @@ import ApplicationStore from "../../stores/ApplicationStore";
 import MulticastGroupStore from "../../stores/MulticastGroupStore";
 import FuotaStore from "../../stores/FuotaStore";
 import RelayStore from "../../stores/RelayStore";
+import InternalStore from "../../stores/InternalStore";
 import Admin from "../../components/Admin";
 import { MenuProps } from "antd/lib";
 
@@ -77,6 +80,7 @@ function ListDevices(props: IProps) {
   const [searchField, setSearchField] = useState<ListDevicesRequest.SearchField>(
     ListDevicesRequest.SearchField.SEARCH_FIELD_NAME,
   );
+  const [devicesSummary, setDevicesSummary] = useState<GetDevicesSummaryResponse | undefined>(undefined);
 
   useEffect(() => {
     const appDpReq = new ListApplicationDeviceProfilesRequest();
@@ -110,6 +114,12 @@ function ListDevices(props: IProps) {
     fuotaReq.setApplicationId(props.application.getId());
     FuotaStore.listDeployments(fuotaReq, (resp: ListFuotaDeploymentsResponse) => {
       setFuotaDeployments(resp.getResultList());
+    });
+
+    const summaryReq = new GetDevicesSummaryRequest();
+    summaryReq.setApplicationId(props.application.getId());
+    InternalStore.getDevicesSummary(summaryReq, (resp: GetDevicesSummaryResponse) => {
+      setDevicesSummary(resp);
     });
   }, [props]);
 
@@ -413,6 +423,35 @@ function ListDevices(props: IProps) {
           />
         </Space>
       </Modal>
+      <Row gutter={24}>
+        <Col xs={12} sm={6}>
+          <Card>
+            <Statistic
+              title="Total"
+              value={
+                (devicesSummary?.getActiveCount() ?? 0) +
+                (devicesSummary?.getInactiveCount() ?? 0) +
+                (devicesSummary?.getNeverSeenCount() ?? 0)
+              }
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card>
+            <Statistic title="Active" value={devicesSummary?.getActiveCount() ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card>
+            <Statistic title="Inactive" value={devicesSummary?.getInactiveCount() ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card>
+            <Statistic title="Never seen" value={devicesSummary?.getNeverSeenCount() ?? 0} />
+          </Card>
+        </Col>
+      </Row>
       <Admin tenantId={props.application.getTenantId()} applicationId={props.application.getId()} isApplicationAdmin>
         <Space orientation="horizontal" style={{ float: "right" }}>
           <Button type="primary">

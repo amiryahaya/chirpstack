@@ -629,27 +629,40 @@ impl InternalService for Internal {
             Some(Uuid::from_str(&req.tenant_id).map_err(|e| e.status())?)
         };
 
-        if tenant_id.is_none() {
-            self.validator
-                .validate(request.extensions(), validator::ValidateIsAdmin::new())
-                .await?;
+        let application_id = if req.application_id.is_empty() {
+            None
         } else {
+            Some(Uuid::from_str(&req.application_id).map_err(|e| e.status())?)
+        };
+
+        if let Some(application_id) = application_id {
             self.validator
                 .validate(
                     request.extensions(),
-                    validator::ValidateTenantAccess::new(
+                    validator::ValidateApplicationAccess::new(
                         validator::Flag::Read,
-                        *tenant_id.as_ref().unwrap(),
+                        application_id,
                     ),
                 )
                 .await?;
+        } else if let Some(tenant_id) = tenant_id {
+            self.validator
+                .validate(
+                    request.extensions(),
+                    validator::ValidateTenantAccess::new(validator::Flag::Read, tenant_id),
+                )
+                .await?;
+        } else {
+            self.validator
+                .validate(request.extensions(), validator::ValidateIsAdmin::new())
+                .await?;
         }
 
-        let active_inactive = device::get_active_inactive(&tenant_id)
+        let active_inactive = device::get_active_inactive(&tenant_id, &application_id)
             .await
             .map_err(|e| e.status())?;
 
-        let dr_count = device::get_data_rates(&tenant_id)
+        let dr_count = device::get_data_rates(&tenant_id, &application_id)
             .await
             .map_err(|e| e.status())?;
 
