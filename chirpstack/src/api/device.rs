@@ -77,6 +77,9 @@ impl DeviceService for Device {
             alert_state: 0,
             latitude: req_d.latitude,
             longitude: req_d.longitude,
+            photo_urls: fields::StringVec::new(
+                req_d.photo_urls.iter().map(|s| Some(s.clone())).collect(),
+            ),
             ..Default::default()
         };
 
@@ -124,6 +127,7 @@ impl DeviceService for Device {
                 alert_enabled: Some(d.alert_enabled),
                 latitude: d.latitude,
                 longitude: d.longitude,
+                photo_urls: d.photo_urls.iter().flatten().cloned().collect(),
             }),
             created_at: Some(helpers::datetime_to_prost_timestamp(&d.created_at)),
             updated_at: Some(helpers::datetime_to_prost_timestamp(&d.updated_at)),
@@ -209,6 +213,9 @@ impl DeviceService for Device {
             join_eui,
             latitude: req_d.latitude,
             longitude: req_d.longitude,
+            photo_urls: fields::StringVec::new(
+                req_d.photo_urls.iter().map(|s| Some(s.clone())).collect(),
+            ),
             ..Default::default()
         })
         .await
@@ -1441,6 +1448,10 @@ pub mod test {
                     dev_eui: "0102030405060708".into(),
                     latitude: Some(1.234),
                     longitude: Some(2.345),
+                    photo_urls: vec![
+                        "https://drive.google.com/file/d/abc/view".into(),
+                        "https://drive.google.com/file/d/def/view".into(),
+                    ],
                     ..Default::default()
                 }),
             },
@@ -1465,6 +1476,10 @@ pub mod test {
                 alert_enabled: Some(true),
                 latitude: Some(1.234),
                 longitude: Some(2.345),
+                photo_urls: vec![
+                    "https://drive.google.com/file/d/abc/view".into(),
+                    "https://drive.google.com/file/d/def/view".into(),
+                ],
                 ..Default::default()
             }),
             get_resp.get_ref().device
@@ -1584,13 +1599,14 @@ pub mod test {
                     dev_eui: "0102030405060708".into(),
                     join_eui: "0807060504030201".into(),
                     alert_enabled: Some(false),
+                    photo_urls: vec!["https://drive.google.com/file/d/xyz/view".into()],
                     ..Default::default()
                 }),
             },
         );
         let _ = service.update(update_req).await.unwrap();
 
-        // get, alerts must be disabled
+        // get, alerts must be disabled, photo_urls must be updated
         let get_req = get_request(
             &u.id,
             api::GetDeviceRequest {
@@ -1601,6 +1617,10 @@ pub mod test {
         assert_eq!(
             Some(false),
             get_resp.get_ref().device.as_ref().unwrap().alert_enabled
+        );
+        assert_eq!(
+            vec!["https://drive.google.com/file/d/xyz/view".to_string()],
+            get_resp.get_ref().device.as_ref().unwrap().photo_urls
         );
 
         // update, without setting alert_enabled must leave it untouched

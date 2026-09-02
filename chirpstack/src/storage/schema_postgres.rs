@@ -84,6 +84,7 @@ diesel::table! {
         f_cnt_up -> Int8,
         alert_enabled -> Bool,
         alert_state -> Int2,
+        photo_urls -> Array<Nullable<Text>>,
     }
 }
 

@@ -63,6 +63,8 @@ function DeviceForm(props: IProps) {
       d.getVariablesMap().set(elm[0], elm[1]);
     }
 
+    d.setPhotoUrlsList(v.photoUrlsList || []);
+
     props.onFinish(d);
   };
 
@@ -261,6 +263,42 @@ function DeviceForm(props: IProps) {
                   Add variable
                 </Button>
               </Form.Item>
+            </>
+          )}
+        </Form.List>
+      ),
+    },
+    {
+      key: "4",
+      label: "Photos",
+      children: (
+        <Form.List name="photoUrlsList">
+          {(fields, { add, remove }) => (
+            <>
+              {fields.map(field => (
+                <Row gutter={24} key={field.key}>
+                  <Col xs={20} sm={22}>
+                    <Form.Item
+                      {...field}
+                      rules={[{ type: "url", message: "Please enter a valid URL" }]}
+                    >
+                      <Input placeholder="https://drive.google.com/..." disabled={props.disabled} />
+                    </Form.Item>
+                  </Col>
+                  {!props.disabled && (
+                    <Col xs={4} sm={2}>
+                      <MinusCircleOutlined onClick={() => remove(field.name)} />
+                    </Col>
+                  )}
+                </Row>
+              ))}
+              {!props.disabled && (
+                <Form.Item>
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    Add meter photo URL
+                  </Button>
+                </Form.Item>
+              )}
             </>
           )}
         </Form.List>

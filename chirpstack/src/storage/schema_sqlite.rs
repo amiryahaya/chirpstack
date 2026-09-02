@@ -79,6 +79,7 @@ diesel::table! {
         f_cnt_up -> BigInt,
         alert_enabled -> Bool,
         alert_state -> SmallInt,
+        photo_urls -> Text,
     }
 }
 

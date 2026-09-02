@@ -137,6 +137,7 @@ pub struct Device {
     pub f_cnt_up: i64,
     pub alert_enabled: bool,
     pub alert_state: i16,
+    pub photo_urls: fields::StringVec,
 }
 
 #[derive(AsChangeset, Debug, Clone, Default)]
@@ -217,6 +218,7 @@ impl Default for Device {
             f_cnt_up: 0,
             alert_enabled: true,
             alert_state: 0,
+            photo_urls: fields::StringVec::default(),
         }
     }
 }
@@ -634,6 +636,7 @@ pub async fn update(d: Device) -> Result<Device, Error> {
             device::app_layer_params.eq(&d.app_layer_params),
             device::latitude.eq(&d.latitude),
             device::longitude.eq(&d.longitude),
+            device::photo_urls.eq(&d.photo_urls),
         ))
         .get_result(&mut get_async_db_conn().await?)
         .await

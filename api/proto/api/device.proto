@@ -198,6 +198,11 @@ message Device {
 
   // Longitude (optional).
   optional double longitude = 13;
+
+  // Meter photo URLs (optional).
+  // Links to photos of the physical meter / installation, hosted externally
+  // (e.g. Google Drive). An empty list means no photos have been added.
+  repeated string photo_urls = 14;
 }
 
 message DeviceStatus {
