@@ -254,6 +254,19 @@ pub struct Filters {
     pub search: Option<String>,
     pub search_field: SearchField,
     pub tags: HashMap<String, String>,
+    pub activity_filter: ActivityFilter,
+}
+
+// Mirrors the never-seen / inactive / active rule used by get_active_inactive
+// (1.5x the device-profile's uplink interval), applied as a row-level filter
+// on the paginated device list/count instead of an aggregate.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum ActivityFilter {
+    #[default]
+    All,
+    Active,
+    Inactive,
+    NeverSeen,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -720,6 +733,7 @@ pub async fn get_count(filters: &Filters) -> Result<i64, Error> {
         .select(dsl::count_star())
         .distinct()
         .inner_join(application::table)
+        .inner_join(device_profile::table)
         .left_join(multicast_group_device::table)
         .into_boxed();
 
@@ -816,6 +830,43 @@ pub async fn get_count(filters: &Filters) -> Result<i64, Error> {
                     dsl::sql::<diesel::sql_types::Bool>(&format!("device.tags->>'{}' =", k))
                         .bind::<diesel::sql_types::Text, _>(v),
                 );
+            }
+        }
+    }
+
+    match filters.activity_filter {
+        ActivityFilter::All => {}
+        ActivityFilter::NeverSeen => {
+            q = q.filter(device::dsl::last_seen_at.is_null());
+        }
+        ActivityFilter::Active => {
+            q = q.filter(device::dsl::last_seen_at.is_not_null());
+            #[cfg(feature = "postgres")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(now() - device.last_seen_at) <= (make_interval(secs => device_profile.uplink_interval) * 1.5)",
+                ));
+            }
+            #[cfg(feature = "sqlite")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(unixepoch('now') - unixepoch(device.last_seen_at)) <= (device_profile.uplink_interval * 1.5)",
+                ));
+            }
+        }
+        ActivityFilter::Inactive => {
+            q = q.filter(device::dsl::last_seen_at.is_not_null());
+            #[cfg(feature = "postgres")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(now() - device.last_seen_at) > (make_interval(secs => device_profile.uplink_interval) * 1.5)",
+                ));
+            }
+            #[cfg(feature = "sqlite")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(unixepoch('now') - unixepoch(device.last_seen_at)) > (device_profile.uplink_interval * 1.5)",
+                ));
             }
         }
     }
@@ -949,6 +1000,43 @@ pub async fn list(
                     dsl::sql::<diesel::sql_types::Bool>(&format!("device.tags->>'{}' =", k))
                         .bind::<diesel::sql_types::Text, _>(v),
                 );
+            }
+        }
+    }
+
+    match filters.activity_filter {
+        ActivityFilter::All => {}
+        ActivityFilter::NeverSeen => {
+            q = q.filter(device::dsl::last_seen_at.is_null());
+        }
+        ActivityFilter::Active => {
+            q = q.filter(device::dsl::last_seen_at.is_not_null());
+            #[cfg(feature = "postgres")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(now() - device.last_seen_at) <= (make_interval(secs => device_profile.uplink_interval) * 1.5)",
+                ));
+            }
+            #[cfg(feature = "sqlite")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(unixepoch('now') - unixepoch(device.last_seen_at)) <= (device_profile.uplink_interval * 1.5)",
+                ));
+            }
+        }
+        ActivityFilter::Inactive => {
+            q = q.filter(device::dsl::last_seen_at.is_not_null());
+            #[cfg(feature = "postgres")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(now() - device.last_seen_at) > (make_interval(secs => device_profile.uplink_interval) * 1.5)",
+                ));
+            }
+            #[cfg(feature = "sqlite")]
+            {
+                q = q.filter(dsl::sql::<diesel::sql_types::Bool>(
+                    "(unixepoch('now') - unixepoch(device.last_seen_at)) > (device_profile.uplink_interval * 1.5)",
+                ));
             }
         }
     }
@@ -2292,5 +2380,88 @@ pub mod test {
         assert_eq!(0, app_2_summary.active_count);
         assert_eq!(1, app_2_summary.inactive_count);
         assert_eq!(0, app_2_summary.never_seen_count);
+    }
+
+    #[tokio::test]
+    async fn test_list_activity_filter() {
+        let _guard = test::prepare().await;
+        let dp = storage::device_profile::test::create_device_profile(None).await;
+        let tenant_id: Uuid = dp.tenant_id.unwrap().into();
+        let app = storage::application::test::create_application(Some(tenant_id.into())).await;
+
+        let active = create(Device {
+            name: "active".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 1]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            last_seen_at: Some(Utc::now()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        let inactive = create(Device {
+            name: "inactive".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 2]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            last_seen_at: Some(Utc::now() - chrono::Duration::seconds(600)),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        let never_seen = create(Device {
+            name: "never-seen".into(),
+            dev_eui: EUI64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, 3]),
+            application_id: app.id,
+            device_profile_id: dp.id.into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+        let base_filters = Filters {
+            application_id: Some(app.id.into()),
+            ..Default::default()
+        };
+
+        // All: every device, filter untouched.
+        let count = get_count(&base_filters).await.unwrap();
+        assert_eq!(3, count);
+
+        // Active-only.
+        let filters = Filters {
+            activity_filter: ActivityFilter::Active,
+            ..base_filters.clone()
+        };
+        assert_eq!(1, get_count(&filters).await.unwrap());
+        let items = list(10, 0, &filters, OrderBy::Name, false).await.unwrap();
+        assert_eq!(
+            vec![active.dev_eui],
+            items.iter().map(|i| i.dev_eui).collect::<Vec<_>>()
+        );
+
+        // Inactive-only.
+        let filters = Filters {
+            activity_filter: ActivityFilter::Inactive,
+            ..base_filters.clone()
+        };
+        assert_eq!(1, get_count(&filters).await.unwrap());
+        let items = list(10, 0, &filters, OrderBy::Name, false).await.unwrap();
+        assert_eq!(
+            vec![inactive.dev_eui],
+            items.iter().map(|i| i.dev_eui).collect::<Vec<_>>()
+        );
+
+        // Never-seen-only.
+        let filters = Filters {
+            activity_filter: ActivityFilter::NeverSeen,
+            ..base_filters.clone()
+        };
+        assert_eq!(1, get_count(&filters).await.unwrap());
+        let items = list(10, 0, &filters, OrderBy::Name, false).await.unwrap();
+        assert_eq!(
+            vec![never_seen.dev_eui],
+            items.iter().map(|i| i.dev_eui).collect::<Vec<_>>()
+        );
     }
 }

@@ -63,6 +63,8 @@ interface IProps {
   application: Application;
 }
 
+const selectedStatCardStyle = { borderColor: "#1677ff", borderWidth: 2 };
+
 function ListDevices(props: IProps) {
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [multicastGroups, setMulticastGroups] = useState<MulticastGroupListItem[]>([]);
@@ -81,6 +83,9 @@ function ListDevices(props: IProps) {
     ListDevicesRequest.SearchField.SEARCH_FIELD_NAME,
   );
   const [devicesSummary, setDevicesSummary] = useState<GetDevicesSummaryResponse | undefined>(undefined);
+  const [activityFilter, setActivityFilter] = useState<ListDevicesRequest.ActivityFilter>(
+    ListDevicesRequest.ActivityFilter.ALL,
+  );
 
   useEffect(() => {
     const appDpReq = new ListApplicationDeviceProfilesRequest();
@@ -273,6 +278,7 @@ function ListDevices(props: IProps) {
     req.setOrderByDesc(orderByDesc || false);
     req.setSearch(search);
     req.setSearchField(searchField);
+    req.setActivityFilter(activityFilter);
 
     {
       let tagsFilter = f.tags;
@@ -425,7 +431,11 @@ function ListDevices(props: IProps) {
       </Modal>
       <Row gutter={24}>
         <Col xs={12} sm={6}>
-          <Card>
+          <Card
+            hoverable
+            onClick={() => setActivityFilter(ListDevicesRequest.ActivityFilter.ALL)}
+            style={activityFilter === ListDevicesRequest.ActivityFilter.ALL ? selectedStatCardStyle : undefined}
+          >
             <Statistic
               title="Total"
               value={
@@ -437,17 +447,31 @@ function ListDevices(props: IProps) {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
+          <Card
+            hoverable
+            onClick={() => setActivityFilter(ListDevicesRequest.ActivityFilter.ACTIVE)}
+            style={activityFilter === ListDevicesRequest.ActivityFilter.ACTIVE ? selectedStatCardStyle : undefined}
+          >
             <Statistic title="Active" value={devicesSummary?.getActiveCount() ?? 0} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
+          <Card
+            hoverable
+            onClick={() => setActivityFilter(ListDevicesRequest.ActivityFilter.INACTIVE)}
+            style={activityFilter === ListDevicesRequest.ActivityFilter.INACTIVE ? selectedStatCardStyle : undefined}
+          >
             <Statistic title="Inactive" value={devicesSummary?.getInactiveCount() ?? 0} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
+          <Card
+            hoverable
+            onClick={() => setActivityFilter(ListDevicesRequest.ActivityFilter.NEVER_SEEN)}
+            style={
+              activityFilter === ListDevicesRequest.ActivityFilter.NEVER_SEEN ? selectedStatCardStyle : undefined
+            }
+          >
             <Statistic title="Never seen" value={devicesSummary?.getNeverSeenCount() ?? 0} />
           </Card>
         </Col>
@@ -466,28 +490,41 @@ function ListDevices(props: IProps) {
           </Dropdown>
         </Space>
       </Admin>
-      <Space.Compact>
+      <Space>
         <Select
-          value={searchField}
-          onChange={setSearchField}
+          value={activityFilter}
+          onChange={setActivityFilter}
+          style={{ width: 140 }}
           options={[
-            { value: ListDevicesRequest.SearchField.SEARCH_FIELD_NAME, label: "Name" },
-            { value: ListDevicesRequest.SearchField.SEARCH_FIELD_DEV_EUI, label: "DevEUI" },
+            { value: ListDevicesRequest.ActivityFilter.ALL, label: "All" },
+            { value: ListDevicesRequest.ActivityFilter.ACTIVE, label: "Active" },
+            { value: ListDevicesRequest.ActivityFilter.INACTIVE, label: "Inactive" },
+            { value: ListDevicesRequest.ActivityFilter.NEVER_SEEN, label: "Never seen" },
           ]}
         />
-        <Input.Search
-          placeholder="Search"
-          allowClear
-          onSearch={setSearch}
-          style={{ width: 300 }}
-        />
-      </Space.Compact>
+        <Space.Compact>
+          <Select
+            value={searchField}
+            onChange={setSearchField}
+            options={[
+              { value: ListDevicesRequest.SearchField.SEARCH_FIELD_NAME, label: "Name" },
+              { value: ListDevicesRequest.SearchField.SEARCH_FIELD_DEV_EUI, label: "DevEUI" },
+            ]}
+          />
+          <Input.Search
+            placeholder="Search"
+            allowClear
+            onSearch={setSearch}
+            style={{ width: 300 }}
+          />
+        </Space.Compact>
+      </Space>
       <DataTable
         columns={columns}
         getPage={getPage}
         onRowsSelectChange={onRowsSelectChange}
         rowKey="devEui"
-        refreshKey={`${search}-${searchField}`}
+        refreshKey={`${search}-${searchField}-${activityFilter}`}
       />
     </Space>
   );

@@ -346,6 +346,7 @@ impl DeviceService for Device {
             },
             search_field: req.search_field().from_proto(),
             tags: req.tags.clone(),
+            activity_filter: req.activity_filter().from_proto(),
         };
 
         let count = device::get_count(&filters).await.map_err(|e| e.status())?;

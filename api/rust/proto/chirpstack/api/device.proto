@@ -378,6 +378,25 @@ message ListDevicesRequest {
   // Use this to list devices across all applications of a tenant in a
   // single call, without setting application_id.
   string tenant_id = 11;
+
+  enum ActivityFilter {
+    // No filtering on activity status.
+    ALL = 0;
+
+    // Only devices that have sent an uplink within 1.5x their
+    // device-profile's expected uplink interval.
+    ACTIVE = 1;
+
+    // Only devices that have gone quiet for longer than 1.5x their
+    // device-profile's expected uplink interval.
+    INACTIVE = 2;
+
+    // Only devices that have never sent an uplink.
+    NEVER_SEEN = 3;
+  }
+
+  // Filter devices by activity status (optional, default: ALL).
+  ActivityFilter activity_filter = 12;
 }
 
 message ListDevicesResponse {

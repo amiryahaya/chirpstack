@@ -288,6 +288,17 @@ impl FromProto<device::SearchField> for api::list_devices_request::SearchField {
     }
 }
 
+impl FromProto<device::ActivityFilter> for api::list_devices_request::ActivityFilter {
+    fn from_proto(self) -> device::ActivityFilter {
+        match self {
+            Self::All => device::ActivityFilter::All,
+            Self::Active => device::ActivityFilter::Active,
+            Self::Inactive => device::ActivityFilter::Inactive,
+            Self::NeverSeen => device::ActivityFilter::NeverSeen,
+        }
+    }
+}
+
 impl FromProto<gateway::OrderBy> for api::list_gateways_request::OrderBy {
     fn from_proto(self) -> gateway::OrderBy {
         match self {
