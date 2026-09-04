@@ -410,6 +410,7 @@ impl DeviceService for Device {
                         uplink_interval: d.uplink_interval as u32,
                         last_seen_gateway_id,
                         last_seen_gateway_rssi,
+                        photo_urls: d.photo_urls.iter().flatten().cloned().collect(),
                     }
                 })
                 .collect(),
@@ -1503,6 +1504,13 @@ pub mod test {
         assert_eq!(300, list_resp.get_ref().result[0].uplink_interval);
         assert_eq!("", list_resp.get_ref().result[0].last_seen_gateway_id);
         assert_eq!(0, list_resp.get_ref().result[0].last_seen_gateway_rssi);
+        assert_eq!(
+            vec![
+                "https://drive.google.com/file/d/abc/view".to_string(),
+                "https://drive.google.com/file/d/def/view".to_string(),
+            ],
+            list_resp.get_ref().result[0].photo_urls
+        );
 
         // record an uplink heard by two gateways, list must report the
         // strongest-RSSI one

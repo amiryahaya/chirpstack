@@ -62,6 +62,40 @@ function deviceActivityStatus(
   return { label: "Active", color: presetPalettes.green.primary! };
 }
 
+// Marker pin color for a device's activity status, independent of
+// deviceActivityStatus's text color (which uses orange for "Never seen" to
+// match the rest of the UI's active/inactive/never palette) -- on the map,
+// gray reads more clearly as "no data yet" than orange does against markers
+// that are already red/green.
+function deviceMarkerColor(label: string): MarkerColor {
+  switch (label) {
+    case "Active":
+      return "green";
+    case "Inactive":
+      return "red";
+    default:
+      return "lightgray";
+  }
+}
+
+// A Google Drive "share" link (https://drive.google.com/file/d/<id>/view or
+// .../open?id=<id>) serves an HTML viewer page, not raw image bytes, so it
+// can't be used directly as an <img> src. Rewrite it to Drive's public
+// thumbnail endpoint, which works for anyone with the file's link. Any
+// other host is assumed to already be a direct image URL.
+function toThumbnailUrl(url: string): string {
+  if (!url.includes("drive.google.com")) {
+    return url;
+  }
+
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (match === null) {
+    return url;
+  }
+
+  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w200`;
+}
+
 // Typical LoRa receive-sensitivity range for the sub-GHz ISM bands: weak
 // (near the noise floor) to strong (close range / clear line of sight).
 const rssiWeak = -130;
@@ -176,7 +210,12 @@ function NetworkMap(props: NetworkMapProps) {
     const status = deviceActivityStatus(lastSeenAt, item.getUplinkInterval());
 
     markers.push(
-      <Marker position={[pos[0], pos[1]]} faIcon={icon} color="blue" key={`dev-${item.getDevEui()}`}>
+      <Marker
+        position={[pos[0], pos[1]]}
+        faIcon={icon}
+        color={deviceMarkerColor(status.label)}
+        key={`dev-${item.getDevEui()}`}
+      >
         <Popup>
           <Link
             to={`/tenants/${props.tenantId}/applications/${item.getApplicationId()}/devices/${item.getDevEui()}`}
@@ -205,6 +244,22 @@ function NetworkMap(props: NetworkMapProps) {
             </>
           )}
           {lastSeenAt !== undefined && formatDistanceToNow(lastSeenAt, { addSuffix: true })}
+          {item.getPhotoUrlsList().length > 0 && (
+            <>
+              <br />
+              <Space size={4} style={{ marginTop: 4 }}>
+                {item.getPhotoUrlsList().map(url => (
+                  <a href={url} target="_blank" rel="noreferrer" key={url}>
+                    <img
+                      src={toThumbnailUrl(url)}
+                      alt="Meter"
+                      style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 4 }}
+                    />
+                  </a>
+                ))}
+              </Space>
+            </>
+          )}
         </Popup>
       </Marker>,
     );

@@ -269,6 +269,9 @@ message DeviceListItem {
 
   // RSSI (dBm) of the reception at last_seen_gateway_id.
   int32 last_seen_gateway_rssi = 16;
+
+  // Meter photo URLs (optional).
+  repeated string photo_urls = 17;
 }
 
 message DeviceKeys {

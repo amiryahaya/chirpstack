@@ -242,6 +242,7 @@ pub struct DeviceListItem {
     pub longitude: Option<f64>,
     pub uplink_interval: i32,
     pub device_session: Option<fields::DeviceSession>,
+    pub photo_urls: fields::StringVec,
 }
 
 #[derive(Default, Clone)]
@@ -903,6 +904,7 @@ pub async fn list(
             device::longitude,
             device_profile::uplink_interval,
             device::device_session,
+            device::photo_urls,
         ))
         .distinct()
         .into_boxed();

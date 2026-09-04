@@ -87,6 +87,11 @@ function Map(props: PropsWithChildren<IProps>) {
   );
 }
 
+// "lightgray" isn't in the @types/leaflet.awesome-markers markerColor union,
+// but the library's own CSS does define an awesome-marker-icon-lightgray
+// class (along with several other colors the stale shipped types are
+// missing) -- the assertion below is bridging an outdated .d.ts, not a real
+// runtime gap.
 export type MarkerColor =
   | "red"
   | "darkred"
@@ -97,6 +102,7 @@ export type MarkerColor =
   | "purple"
   | "darkpurple"
   | "cadetblue"
+  | "lightgray"
   | undefined;
 
 interface MarkerProps extends LMarkerProps {
@@ -111,7 +117,7 @@ export function Marker(props: MarkerProps) {
   const iconMarker = L.AwesomeMarkers.icon({
     icon: faIcon,
     prefix: "fa",
-    markerColor: color,
+    markerColor: color as L.AwesomeMarkers.AwesomeMarkersIconOptions["markerColor"],
   });
 
   return (
