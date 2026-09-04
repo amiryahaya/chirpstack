@@ -106,6 +106,50 @@ function normalizeRssi(rssi: number): number {
   return (clamped - rssiWeak) / (rssiStrong - rssiWeak);
 }
 
+// Great-circle distance between two lat/lng points, in meters.
+function haversineDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const earthRadiusMeters = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(meters: number): string {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
+  }
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+interface GatewayPosition {
+  lat: number;
+  lng: number;
+  name: string;
+}
+
+// This is straight-line ("as the crow flies") distance from the device's own
+// GPS coordinates, not derived from RF/RSSI -- a separate, complementary
+// fact to "last detected by / RSSI" below, which only reflects whichever
+// gateway most recently heard an uplink, not necessarily the closest one.
+function nearestGateway(
+  pos: LatLngTuple,
+  gateways: GatewayPosition[],
+): { name: string; distanceMeters: number } | undefined {
+  let nearest: { name: string; distanceMeters: number } | undefined;
+
+  for (const gw of gateways) {
+    const distanceMeters = haversineDistanceMeters(pos[0], pos[1], gw.lat, gw.lng);
+    if (nearest === undefined || distanceMeters < nearest.distanceMeters) {
+      nearest = { name: gw.name, distanceMeters };
+    }
+  }
+
+  return nearest;
+}
+
 type MapMode = "markers" | "coverage";
 
 interface NetworkMapProps {
@@ -180,8 +224,14 @@ function NetworkMap(props: NetworkMapProps) {
   }
 
   const gatewayNames = new globalThis.Map<string, string>();
+  const gatewayPositions: GatewayPosition[] = [];
   for (const gw of props.gateways) {
     gatewayNames.set(gw.getGatewayId(), gw.getName());
+
+    const loc = gw.getLocation();
+    if (loc !== undefined && (loc.getLatitude() !== 0 || loc.getLongitude() !== 0)) {
+      gatewayPositions.push({ lat: loc.getLatitude(), lng: loc.getLongitude(), name: gw.getName() });
+    }
   }
 
   for (const item of props.devices) {
@@ -208,6 +258,7 @@ function NetworkMap(props: NetworkMapProps) {
     const icon = props.applicationIcons.get(item.getApplicationId()) || defaultDeviceIcon;
     const lastSeenAt = item.getLastSeenAt() !== undefined ? item.getLastSeenAt()!.toDate() : undefined;
     const status = deviceActivityStatus(lastSeenAt, item.getUplinkInterval());
+    const nearest = nearestGateway(pos, gatewayPositions);
 
     markers.push(
       <Marker
@@ -244,6 +295,12 @@ function NetworkMap(props: NetworkMapProps) {
             </>
           )}
           {lastSeenAt !== undefined && formatDistanceToNow(lastSeenAt, { addSuffix: true })}
+          {nearest !== undefined && (
+            <>
+              <br />
+              {formatDistance(nearest.distanceMeters)} from {nearest.name}
+            </>
+          )}
           {item.getPhotoUrlsList().length > 0 && (
             <>
               <br />
